@@ -1,5 +1,9 @@
 # dns-stamp-parser
 A library to encode and decode [DNS stamp](https://dnscrypt.info/stamps-specifications).
+[![Build Status](https://travis-ci.org/LinkTed/dns-stamp-parser.svg?branch=master)](https://travis-ci.org/LinkTed/dns-stamp-parser)
+[![dependency status](https://deps.rs/repo/github/linkted/dns-stamp-parser/status.svg)](https://deps.rs/repo/github/linkted/dns-stamp-parser)
+[![Latest version](https://img.shields.io/crates/v/dns-stamp-parser.svg)](https://crates.io/crates/dns-stamp-parser)
+[![License](https://img.shields.io/crates/l/dns-stamp-parser.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 ## Usage
 Add this to your `Cargo.toml`:
