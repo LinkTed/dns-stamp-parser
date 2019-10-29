@@ -11,7 +11,7 @@ keywords = ["doh", "dns", "stamps", "dnscrypt"]
 categories = ["parser-implementations", "encoding"]
 
 [badges]
-travis-ci = { repository = "LinkTed/doh-client" }
+travis-ci = { repository = "LinkTed/dns-stamp-parser" }
 
 [dependencies]
 regex = "1.3.1"
