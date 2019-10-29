@@ -6,6 +6,7 @@ license = "BSD-3-Clause"
 edition = "2018"
 description = "Libary to encode and decode DNS stamps"
 readme = "README.md"
+repository = "https://github.com/LinkTed/dns-stamp-parser"
 keywords = ["doh", "dns", "stamps", "dnscrypt"]
 categories = ["parser-implementations", "encoding"]
 
