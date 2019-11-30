@@ -1,7 +1,9 @@
 //! This module contains all decode functions for this crate.
 use std::mem::size_of;
 use std::convert::TryInto;
-use std::net::{SocketAddr, IpAddr};
+use std::num::ParseIntError;
+use std::str::{from_utf8, Utf8Error};
+use std::net::{SocketAddr, IpAddr, AddrParseError};
 use regex::Regex;
 use num_traits::FromPrimitive;
 use crate::{DnsStampDecodeError, Addr, DnsStampType, Props};
@@ -50,36 +52,13 @@ fn decode_lp<'a>(buf: &'a [u8], offset: &mut usize) -> Result<&'a [u8], DnsStamp
     }
 }
 
-/// Decode a `str`slice from a `u8` slice.
-fn u8_array_to_str(bytes: &[u8]) -> Result<&str, DnsStampDecodeError> {
-    match std::str::from_utf8(bytes) {
-        Ok(string) => {
-            Ok(string)
-        }
-        Err(e) => {
-            Err(DnsStampDecodeError::Utf8Error(e))
-        }
-    }
-}
-
 /// Decode a `str` slice from a `u8` slice at a specific `offset`.
 /// Increase the `offset` by the size of the `str`.
 pub fn decode_str<'a>(buf: &'a [u8], offset: &mut usize) -> Result<&'a str, DnsStampDecodeError> {
     let bytes = decode_lp(buf, offset)?;
 
-    u8_array_to_str(bytes)
-}
-
-/// Convert a `str` to `std::net::IpAddr`.
-fn str_to_ip_addr(string: &str) -> Result<IpAddr, DnsStampDecodeError> {
-    match string.parse() {
-        Ok(result) => {
-            Ok(result)
-        },
-        Err(e) => {
-            Err(DnsStampDecodeError::AddrParseError(e))
-        }
-    }
+    let str = from_utf8(bytes)?;
+    Ok(str)
 }
 
 /// Decode a 'str' and convert it to a `std::net::IpAddr` from a `u8` slice at s specific `offset`.
@@ -87,7 +66,8 @@ fn str_to_ip_addr(string: &str) -> Result<IpAddr, DnsStampDecodeError> {
 pub fn decode_ip_addr(buf: &[u8], offset: &mut usize) -> Result<IpAddr, DnsStampDecodeError> {
     let string = decode_str(buf, offset)?;
 
-    str_to_ip_addr(string)
+    let ip_addr = string.parse()?;
+    Ok(ip_addr)
 }
 
 /// Convert a `str` to a `std::net::SocketAddr`.
@@ -101,7 +81,7 @@ fn str_to_socket_addr(string: &str, default_port: u16) -> Result<SocketAddr, Dns
             if let Ok(result) = format!("{}:{}", string, default_port).parse() {
                 return Ok(result)
             }
-            Err(DnsStampDecodeError::AddrParseError(e))
+            Err(DnsStampDecodeError::from(e))
         }
     }
 }
@@ -133,14 +113,8 @@ pub fn decode_addr(buf: &[u8], offset: &mut usize, default_port: u16) -> Result<
 
     if let Some(c) = PORT_REGEX.captures(&string) {
         if let Some(port) = c.get(1) {
-            match port.as_str().parse() {
-                Ok(port) => {
-                    return Ok(Some(Addr::Port(port)))
-                }
-                Err(e) => {
-                    return Err(DnsStampDecodeError::ParseIntError(e))
-                }
-            }
+            let port = port.as_str().parse()?;
+            return Ok(Some(Addr::Port(port)))
         }
     }
 
@@ -205,7 +179,7 @@ pub fn decode_hashi(buf: &[u8], offset: &mut usize) -> Result<Vec<[u8;32]>, DnsS
 pub fn decode_bootstrap_ipi(buf: &[u8], offset: &mut usize) -> Result<Vec<IpAddr>, DnsStampDecodeError> {
     let mut bootstrap_ipi = Vec::new();
     for ip in decode_vlp(buf, offset)? {
-        bootstrap_ipi.push(str_to_ip_addr(u8_array_to_str(ip)?)?);
+        bootstrap_ipi.push(from_utf8(ip)?.parse()?);
     }
     Ok(bootstrap_ipi)
 }
@@ -236,4 +210,22 @@ pub fn decode_type(buf: &[u8], offset: &mut usize) -> Result<DnsStampType, DnsSt
 pub fn decode_props(buf: &[u8], offset: &mut usize) -> Result<Props, DnsStampDecodeError> {
     let props = decode_uint64(buf, offset)?;
     Ok(Props::from_bits_truncate(props))
+}
+
+impl From<Utf8Error> for DnsStampDecodeError {
+    fn from(utf8_error: Utf8Error) -> Self {
+        DnsStampDecodeError::Utf8Error(utf8_error)
+    }
+}
+
+impl From<AddrParseError> for DnsStampDecodeError {
+    fn from(addr_parse_error: AddrParseError) -> Self {
+        DnsStampDecodeError::AddrParseError(addr_parse_error)
+    }
+}
+
+impl From<ParseIntError> for DnsStampDecodeError {
+    fn from(parse_int_error: ParseIntError) -> Self {
+        DnsStampDecodeError::ParseIntError(parse_int_error)
+    }
 }
