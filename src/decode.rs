@@ -1,3 +1,4 @@
+//! This module contains all decode functions for this crate.
 use std::mem::size_of;
 use std::convert::TryInto;
 use std::net::{SocketAddr, IpAddr};
@@ -6,6 +7,8 @@ use num_traits::FromPrimitive;
 use crate::{DnsStampDecodeError, Addr, DnsStampType, Props};
 
 
+/// Decode a `u8` from a `u8` slice at a specific `offset`.
+/// Increase the `offset` by the size of `u8`.
 fn decode_u8(buf: &[u8], offset: &mut usize) -> Result<u8, DnsStampDecodeError> {
     let start = *offset;
     *offset += size_of::<u8>();
@@ -17,6 +20,8 @@ fn decode_u8(buf: &[u8], offset: &mut usize) -> Result<u8, DnsStampDecodeError> 
     }
 }
 
+/// Decode a `u64` from a `u8` slice at a specific `offset`.
+/// Increase the `offset` by the size of `u64`.
 fn decode_uint64(buf: &[u8], offset: &mut usize) -> Result<u64, DnsStampDecodeError> {
     let start = *offset;
     *offset += size_of::<u64>();
@@ -28,6 +33,11 @@ fn decode_uint64(buf: &[u8], offset: &mut usize) -> Result<u64, DnsStampDecodeEr
     }
 }
 
+/// Decode a `u8`slice from a `u8` slice at a specific `offset`.
+/// Increase the `offset` by the size of the `u8` slice.
+/// See [`LP()`].
+///
+/// [`LP()`]: https://dnscrypt.info/stamps-specifications#common-definitions
 fn decode_lp<'a>(buf: &'a [u8], offset: &mut usize) -> Result<&'a [u8], DnsStampDecodeError> {
     let len = decode_u8(buf, offset)?;
     let start = *offset;
@@ -40,6 +50,7 @@ fn decode_lp<'a>(buf: &'a [u8], offset: &mut usize) -> Result<&'a [u8], DnsStamp
     }
 }
 
+/// Decode a `str`slice from a `u8` slice.
 fn u8_array_to_str(bytes: &[u8]) -> Result<&str, DnsStampDecodeError> {
     match std::str::from_utf8(bytes) {
         Ok(string) => {
@@ -51,12 +62,15 @@ fn u8_array_to_str(bytes: &[u8]) -> Result<&str, DnsStampDecodeError> {
     }
 }
 
+/// Decode a `str` slice from a `u8` slice at a specific `offset`.
+/// Increase the `offset` by the size of the `str`.
 pub fn decode_str<'a>(buf: &'a [u8], offset: &mut usize) -> Result<&'a str, DnsStampDecodeError> {
     let bytes = decode_lp(buf, offset)?;
 
     u8_array_to_str(bytes)
 }
 
+/// Convert a `str` to `std::net::IpAddr`.
 fn str_to_ip_addr(string: &str) -> Result<IpAddr, DnsStampDecodeError> {
     match string.parse() {
         Ok(result) => {
@@ -68,12 +82,16 @@ fn str_to_ip_addr(string: &str) -> Result<IpAddr, DnsStampDecodeError> {
     }
 }
 
+/// Decode a 'str' and convert it to a `std::net::IpAddr` from a `u8` slice at s specific `offset`.
+/// Increase the `offset` by the size of the `str`.
 pub fn decode_ip_addr(buf: &[u8], offset: &mut usize) -> Result<IpAddr, DnsStampDecodeError> {
     let string = decode_str(buf, offset)?;
 
     str_to_ip_addr(string)
 }
 
+/// Convert a `str` to a `std::net::SocketAddr`.
+/// If the `str` contains only a address then use `default_port` as a port.
 fn str_to_socket_addr(string: &str, default_port: u16) -> Result<SocketAddr, DnsStampDecodeError> {
     match string.parse() {
         Ok(result) => {
@@ -88,12 +106,21 @@ fn str_to_socket_addr(string: &str, default_port: u16) -> Result<SocketAddr, Dns
     }
 }
 
+
+/// Decode a `str` and convert it to a `std::net::SocketAddr` from a `u8` slice at a specific `offset`.
+/// Increase the `offset` by the size of the `str`.
+/// If the `str` contains only a address then use `default_port` as a port.
 pub fn decode_socket_addr(buf: &[u8], offset: &mut usize, default_port: u16) -> Result<SocketAddr, DnsStampDecodeError> {
     let string = decode_str(buf, offset)?;
 
     str_to_socket_addr(string, default_port)
 }
 
+/// Decode a `str` and convert it to a `crate::Addr` from a `u8` slice at a specific `offset`.
+/// Increase the `offset` by the size of the `str`.
+/// If the `str` is empty then it return `None`.
+/// If the `str` contains only a port then it return `Some(crate::Addr::Port`.
+/// If the `str` contains a address and a port then it return `Some(crate::Addr::SocketAddr)`.
 pub fn decode_addr(buf: &[u8], offset: &mut usize, default_port: u16) -> Result<Option<Addr>, DnsStampDecodeError> {
     let string = decode_str(buf, offset)?;
     if string == "" {
@@ -121,6 +148,11 @@ pub fn decode_addr(buf: &[u8], offset: &mut usize, default_port: u16) -> Result<
     Ok(Some(Addr::SocketAddr(socket_addr)))
 }
 
+/// Decode a `std::vec::Vec<u8>` slice from a `u8` slice at s specific `offset`.
+/// Increase the `offset` by the size of the `std::vec::Vec<&[u8]>`.
+/// See [`VLP()`].
+///
+/// [`VLP()`]:  https://dnscrypt.info/stamps-specifications#common-definitions
 fn decode_vlp<'a>(buf: &'a [u8], offset: &mut usize) -> Result<Vec<&'a [u8]>, DnsStampDecodeError> {
     let mut vector = Vec::new();
     loop {
@@ -146,6 +178,8 @@ fn decode_vlp<'a>(buf: &'a [u8], offset: &mut usize) -> Result<Vec<&'a [u8]>, Dn
     }
 }
 
+/// Decode an array of `u8` of the size of `32` from a `u8` slice at s specific `offset`.
+/// Increase the `offset` by the size of the array of `u8` of the size of `32`.
 fn u8_array_u8_32_array(array: &[u8]) -> Result<[u8;32], DnsStampDecodeError> {
     if array.len() != 32 {
         return Err(DnsStampDecodeError::Len)
@@ -153,6 +187,8 @@ fn u8_array_u8_32_array(array: &[u8]) -> Result<[u8;32], DnsStampDecodeError> {
     Ok(array.try_into().unwrap())
 }
 
+/// Decode a `std::vec::Vec<[u8;32]>` from a `u8` slice at s specific `offset`.
+/// Increase the `offset` by the size of a `std::vec::Vec<[u8;32]>.
 pub fn decode_hashi(buf: &[u8], offset: &mut usize) -> Result<Vec<[u8;32]>, DnsStampDecodeError> {
     let mut hashi = Vec::new();
     for hash in decode_vlp(buf, offset)? {
@@ -164,6 +200,8 @@ pub fn decode_hashi(buf: &[u8], offset: &mut usize) -> Result<Vec<[u8;32]>, DnsS
     Ok(hashi)
 }
 
+/// Decode a `std::vec::Vec<std::net::IpAddr>` from a `u8` slice at s specific `offset`.
+/// Increase the `offset` by the size of the `std::vec::Vec<std::net::IpAddr>`.
 pub fn decode_bootstrap_ipi(buf: &[u8], offset: &mut usize) -> Result<Vec<IpAddr>, DnsStampDecodeError> {
     let mut bootstrap_ipi = Vec::new();
     for ip in decode_vlp(buf, offset)? {
@@ -172,11 +210,15 @@ pub fn decode_bootstrap_ipi(buf: &[u8], offset: &mut usize) -> Result<Vec<IpAddr
     Ok(bootstrap_ipi)
 }
 
+/// Decode an array of `u8` of the size of `32` from a `u8` slice at s specific `offset`.
+/// Increase the `offset` by the size of the array of `u8` of the size of `32`.
 pub fn decode_pk(buf: &[u8], offset: &mut usize) -> Result<[u8;32], DnsStampDecodeError> {
     let pk = decode_lp(buf, offset)?;
     u8_array_u8_32_array(pk)
 }
 
+/// Decode a `crate::DnsStampType` from a `u8` slice at s specific `offset`.
+/// Increase the `offset` by the size of the `crate::DnsStampType`.
 pub fn decode_type(buf: &[u8], offset: &mut usize) -> Result<DnsStampType, DnsStampDecodeError> {
     let type_ = decode_u8(buf, offset)?;
     match DnsStampType::from_u8(type_) {
@@ -189,6 +231,8 @@ pub fn decode_type(buf: &[u8], offset: &mut usize) -> Result<DnsStampType, DnsSt
     }
 }
 
+/// Decode a `crate::Props` from a `u8` slice at s specific `offset`.
+/// Increase the `offset` by the size of the `crate::Props`.
 pub fn decode_props(buf: &[u8], offset: &mut usize) -> Result<Props, DnsStampDecodeError> {
     let props = decode_uint64(buf, offset)?;
     Ok(Props::from_bits_truncate(props))

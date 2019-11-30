@@ -1,6 +1,9 @@
 use dns_stamp_parser::DnsStamp;
 
 
+/// Test all DNS Stamp from the [list] by decode and encode and decode it again.
+///
+/// [list]: https://github.com/DNSCrypt/dnscrypt-resolvers/blob/master/v2/public-resolvers.md
 #[test]
 fn stamps() {
     // The list is from https://github.com/DNSCrypt/dnscrypt-resolvers/blob/master/v2/public-resolvers.md
