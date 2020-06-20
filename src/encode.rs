@@ -180,6 +180,10 @@ impl DnsStamp {
                 encode_props(&mut buffer, props);
                 encode_ip_addr(&mut buffer, addr)?;
             }
+            DnsStamp::AnonymizedDnsCryptRelay(addr) => {
+                encode_type(&mut buffer, DnsStampType::AnonymizedDnsCryptRelay);
+                encode_addr(&mut buffer, &Some(addr.clone()), 443)?;
+            }
         }
         Ok(format!("sdns://{}", BASE64URL_NOPAD.encode(&buffer)))
     }

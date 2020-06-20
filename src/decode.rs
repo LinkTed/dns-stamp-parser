@@ -41,6 +41,7 @@ fn decode_uint64(buf: &[u8], offset: &mut usize) -> DecodeResult<u64> {
 /// [`LP()`]: https://dnscrypt.info/stamps-specifications#common-definitions
 fn decode_lp<'a>(buf: &'a [u8], offset: &mut usize) -> DecodeResult<&'a [u8]> {
     let len = decode_u8(buf, offset)?;
+    println!("len: {}", len);
     let start = *offset;
     *offset += len as usize;
 
@@ -199,7 +200,7 @@ fn decode_type(buf: &[u8], offset: &mut usize) -> DecodeResult<DnsStampType> {
     if let Some(type_) = DnsStampType::from_u8(type_) {
         Ok(type_)
     } else {
-        Err(DecodeError::UnknownType)
+        Err(DecodeError::UnknownType(type_))
     }
 }
 
@@ -223,15 +224,16 @@ impl DnsStamp {
                 let bytes = BASE64URL_NOPAD.decode(base64.as_str().as_bytes())?;
                 let mut offset: usize = 0;
                 let type_ = decode_type(&bytes, &mut offset)?;
-                let props = decode_props(&bytes, &mut offset)?;
                 let dns_stamp = match type_ {
                     DnsStampType::DnsCrypt => {
+                        let props = decode_props(&bytes, &mut offset)?;
                         let addr = decode_socket_addr(&bytes, &mut offset, 443)?;
                         let pk = decode_pk(&bytes, &mut offset)?;
                         let provider_name = decode_str(&bytes, &mut offset)?.to_string();
                         DnsStamp::DnsCrypt(props, addr, pk, provider_name)
                     }
                     DnsStampType::DnsOverHttps => {
+                        let props = decode_props(&bytes, &mut offset)?;
                         let addr = decode_addr(&bytes, &mut offset, 443)?;
                         let hashi = decode_hashi(&bytes, &mut offset)?;
                         let hostname = decode_str(&bytes, &mut offset)?.to_string();
@@ -244,6 +246,7 @@ impl DnsStamp {
                         DnsStamp::DnsOverHttps(props, addr, hashi, hostname, path, bootstrap_ipi)
                     }
                     DnsStampType::DnsOverTls => {
+                        let props = decode_props(&bytes, &mut offset)?;
                         let addr = decode_addr(&bytes, &mut offset, 443)?;
                         let hashi = decode_hashi(&bytes, &mut offset)?;
                         let hostname = decode_str(&bytes, &mut offset)?.to_string();
@@ -255,8 +258,17 @@ impl DnsStamp {
                         DnsStamp::DnsOverTls(props, addr, hashi, hostname, bootstrap_ipi)
                     }
                     DnsStampType::Plain => {
+                        let props = decode_props(&bytes, &mut offset)?;
                         let addr = decode_ip_addr(&bytes, &mut offset)?;
                         DnsStamp::DnsPlain(props, addr)
+                    }
+                    DnsStampType::AnonymizedDnsCryptRelay => {
+                        let addr = decode_addr(&bytes, &mut offset, 443)?;
+                        if let Some(addr) = addr {
+                            DnsStamp::AnonymizedDnsCryptRelay(addr)
+                        } else {
+                            return Err(DecodeError::MissingAddr);
+                        }
                     }
                 };
                 if bytes.len() == offset {

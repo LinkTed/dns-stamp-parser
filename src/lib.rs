@@ -33,7 +33,7 @@ bitflags! {
 
 /// This enum represent an address.
 /// An address in DNS Stamp can have port or a IP-Address and port.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Addr {
     SocketAddr(SocketAddr),
     Port(u16),
@@ -58,6 +58,10 @@ pub enum DnsStampType {
     ///
     /// [Plain DNS stamps]: https://dnscrypt.info/stamps-specifications#plain-dns-stamps
     Plain = 0x00,
+    /// See [Plain DNS stamps].
+    ///
+    /// [Plain DNS stamps]: https://dnscrypt.info/stamps-specifications#anonymized-dnscrypt-relay-stamps
+    AnonymizedDnsCryptRelay = 0x81,
 }
 
 /// This enum represent a [DNS Stamp].
@@ -88,4 +92,8 @@ pub enum DnsStamp {
     ///
     /// [Plain DNS stamps]: https://dnscrypt.info/stamps-specifications#plain-dns-stamps
     DnsPlain(Props, IpAddr),
+    /// See [Plain DNS stamps].
+    ///
+    /// [Plain DNS stamps]: https://dnscrypt.info/stamps-specifications#anonymized-dnscrypt-relay-stamps
+    AnonymizedDnsCryptRelay(Addr),
 }

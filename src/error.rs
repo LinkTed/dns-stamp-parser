@@ -17,11 +17,13 @@ pub enum DecodeError {
     /// This error occurs if there is too many bytes.
     TooManyBytes,
     /// This error occurs if the type is unknown.
-    UnknownType,
+    UnknownType(u8),
     /// This error occurs if a string could not be decoded.
     Utf8Error(Utf8Error),
     /// This error occurs if the address could not be decoded.
     AddrParseError(AddrParseError),
+    /// This error occurs if an address is missing.
+    MissingAddr,
     /// This error occurs if the length of an array has not the expected value.
     Len,
     /// This error occurs if the a integer could not be parsed.
