@@ -1,6 +1,5 @@
 use dns_stamp_parser::DnsStamp;
 
-
 /// Test all DNS Stamp from the [list] by decode and encode and decode it again.
 ///
 /// [list]: https://github.com/DNSCrypt/dnscrypt-resolvers/blob/master/v2/public-resolvers.md
@@ -219,25 +218,21 @@ fn stamps() {
 
     for stamp_1 in stamps.iter() {
         match DnsStamp::decode(stamp_1) {
-            Ok(dns_stamp_1) => {
-                match dns_stamp_1.encode() {
-                    Ok(stamp_2) => {
-                        match DnsStamp::decode(&stamp_2) {
-                            Ok(dns_stamp_2) => {
-                                if dns_stamp_1 != dns_stamp_2 {
-                                    panic!("Not equal: {} {}", stamp_1, stamp_2);
-                                }
-                            }
-                            Err(e) => {
-                                panic!("Decode 2: {:?}: {} {}", e, stamp_1, stamp_2);
-                            }
+            Ok(dns_stamp_1) => match dns_stamp_1.encode() {
+                Ok(stamp_2) => match DnsStamp::decode(&stamp_2) {
+                    Ok(dns_stamp_2) => {
+                        if dns_stamp_1 != dns_stamp_2 {
+                            panic!("Not equal: {} {}", stamp_1, stamp_2);
                         }
                     }
                     Err(e) => {
-                        panic!("Encode 1: {:?}: {}", e, stamp_1);
+                        panic!("Decode 2: {:?}: {} {}", e, stamp_1, stamp_2);
                     }
+                },
+                Err(e) => {
+                    panic!("Encode 1: {:?}: {}", e, stamp_1);
                 }
-            }
+            },
             Err(e) => {
                 panic!("Decode 1: {:?}: {}", e, stamp_1);
             }

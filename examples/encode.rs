@@ -1,4 +1,4 @@
-use dns_stamp_parser::{DnsStamp, Props, Addr};
+use dns_stamp_parser::{Addr, DnsStamp, Props};
 
 fn main() {
     let props = Props::DNSSEC;

@@ -8,13 +8,10 @@ fn main() {
         println!("No logs: {}", props.contains(Props::NO_LOGS));
         println!("No filter: {}", props.contains(Props::NO_FILTER));
 
-        match addr {
-            Some(addr) => {
-                println!("IP Address: {:?}", addr);
-            }
-            None => {
-                println!("No Address")
-            }
+        if let Some(addr) = addr {
+            println!("IP Address: {:?}", addr);
+        } else {
+            println!("No Address");
         }
 
         print!("Hashes: ");

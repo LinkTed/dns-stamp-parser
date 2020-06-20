@@ -14,9 +14,9 @@ categories = ["parser-implementations", "encoding"]
 travis-ci = { repository = "LinkTed/dns-stamp-parser" }
 
 [dependencies]
-regex = "1.3.4"
+regex = "1.3.9"
 lazy_static = "1.4.0"
-data-encoding = "2.1.2"
+data-encoding = "2.2.1"
 bitflags = "1.2.1"
 num-derive = "0.3.0"
 num-traits = "0.2.11"
