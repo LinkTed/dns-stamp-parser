@@ -57,7 +57,7 @@ pub enum DnsStampType {
     /// See [Plain DNS stamps].
     ///
     /// [Plain DNS stamps]: https://dnscrypt.info/stamps-specifications#plain-dns-stamps
-    DnsPlain = 0x00,
+    Plain = 0x00,
 }
 
 /// This enum represent a [DNS Stamp].

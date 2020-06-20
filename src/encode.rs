@@ -176,7 +176,7 @@ impl DnsStamp {
                 }
             }
             DnsStamp::DnsPlain(props, addr) => {
-                encode_type(&mut buffer, DnsStampType::DnsPlain);
+                encode_type(&mut buffer, DnsStampType::Plain);
                 encode_props(&mut buffer, props);
                 encode_ip_addr(&mut buffer, addr)?;
             }

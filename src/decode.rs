@@ -254,7 +254,7 @@ impl DnsStamp {
                         };
                         DnsStamp::DnsOverTls(props, addr, hashi, hostname, bootstrap_ipi)
                     }
-                    DnsStampType::DnsPlain => {
+                    DnsStampType::Plain => {
                         let addr = decode_ip_addr(&bytes, &mut offset)?;
                         DnsStamp::DnsPlain(props, addr)
                     }
