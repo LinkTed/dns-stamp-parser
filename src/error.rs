@@ -8,7 +8,7 @@ pub type EncodeResult<T> = Result<T, EncodeError>;
 pub type DecodeResult<T> = Result<T, DecodeError>;
 
 /// This enum represent all decode errors.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum DecodeError {
     /// This error occurs if the base64 string could not be decoded.
     Base64Error(DataEncodingDecodeError),
@@ -56,7 +56,7 @@ impl From<ParseIntError> for DecodeError {
 }
 
 /// This enum represent all encode errors.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum EncodeError {
     /// This error occurs if there is too many bytes to encode.
     TooManyBytes,
