@@ -2,10 +2,10 @@ language: rust
 rust:
   - stable
   - beta
-script:
-  - cargo build --verbose --all
-  - cargo test --verbose --all
+  - nightly
 os:
   - linux
   - osx
   - windows
+script:
+  - .travis/main.sh
