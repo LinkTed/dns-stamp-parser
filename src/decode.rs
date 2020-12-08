@@ -1,37 +1,38 @@
 //! This module contains all decode functions for this crate.
-use crate::{Addr, DecodeError, DecodeResult, DnsStamp, DnsStampType, Props};
+use crate::{
+    Addr, AnonymizedDnsCryptRelay, DecodeErr, DecodeResult, DnsCrypt, DnsOverTls, DnsPlain,
+    DnsStamp, DnsStampType, Props, DOH,
+};
 use data_encoding::BASE64URL_NOPAD;
-use num_traits::FromPrimitive;
-use regex::Regex;
-use std::convert::TryInto;
-use std::mem::size_of;
-use std::net::{IpAddr, SocketAddr};
-use std::str::from_utf8;
+use std::{
+    convert::{TryFrom, TryInto},
+    mem::size_of,
+    net::{IpAddr, SocketAddr},
+    str::{self, from_utf8},
+};
 
 /// Decode a `u8` from a `u8` slice at a specific `offset`.
 /// Increase the `offset` by the size of `u8`.
-fn decode_u8(buf: &[u8], offset: &mut usize) -> DecodeResult<u8> {
+fn decode<'a, T>(buf: &'a [u8], offset: &mut usize) -> DecodeResult<&'a [u8]> {
     let start = *offset;
-    *offset += size_of::<u8>();
+    *offset += size_of::<T>();
 
-    if let Some(buf) = buf.get(start..*offset) {
-        Ok(buf[0])
-    } else {
-        Err(DecodeError::NotEnoughBytes)
-    }
+    buf.get(start..*offset).ok_or(DecodeErr::NotEnoughBytes)
 }
 
 /// Decode a `u64` from a `u8` slice at a specific `offset`.
 /// Increase the `offset` by the size of `u64`.
-fn decode_uint64(buf: &[u8], offset: &mut usize) -> DecodeResult<u64> {
-    let start = *offset;
-    *offset += size_of::<u64>();
+fn decode_u64(buf: &[u8], offset: &mut usize) -> DecodeResult<u64> {
+    let bytes = decode::<u64>(buf, offset)?
+        .try_into()
+        .expect("slice has incorrect length");
+    Ok(u64::from_le_bytes(bytes))
+}
 
-    if let Some(buf) = buf.get(start..*offset) {
-        Ok(u64::from_le_bytes(buf.try_into().unwrap()))
-    } else {
-        Err(DecodeError::NotEnoughBytes)
-    }
+/// Decode a `u8` from a `u8` slice at a specific `offset`.
+/// Increase the `offset` by the size of `u8`.
+fn decode_u8(buf: &[u8], offset: &mut usize) -> DecodeResult<u8> {
+    Ok(decode::<u8>(buf, offset)?[0])
 }
 
 /// Decode a `u8`slice from a `u8` slice at a specific `offset`.
@@ -41,24 +42,17 @@ fn decode_uint64(buf: &[u8], offset: &mut usize) -> DecodeResult<u64> {
 /// [`LP()`]: https://dnscrypt.info/stamps-specifications#common-definitions
 fn decode_lp<'a>(buf: &'a [u8], offset: &mut usize) -> DecodeResult<&'a [u8]> {
     let len = decode_u8(buf, offset)?;
-    println!("len: {}", len);
     let start = *offset;
     *offset += len as usize;
 
-    if let Some(buf) = buf.get(start..*offset) {
-        Ok(buf)
-    } else {
-        Err(DecodeError::NotEnoughBytes)
-    }
+    buf.get(start..*offset).ok_or(DecodeErr::NotEnoughBytes)
 }
 
 /// Decode a `str` slice from a `u8` slice at a specific `offset`.
 /// Increase the `offset` by the size of the `str`.
 fn decode_str<'a>(buf: &'a [u8], offset: &mut usize) -> DecodeResult<&'a str> {
     let bytes = decode_lp(buf, offset)?;
-
-    let str = from_utf8(bytes)?;
-    Ok(str)
+    Ok(str::from_utf8(bytes)?)
 }
 
 /// Decode a 'str' and convert it to a `std::net::IpAddr` from a `u8` slice at s specific `offset`.
@@ -75,13 +69,7 @@ fn decode_ip_addr(buf: &[u8], offset: &mut usize) -> DecodeResult<IpAddr> {
 fn str_to_socket_addr(string: &str, default_port: u16) -> DecodeResult<SocketAddr> {
     match string.parse() {
         Ok(result) => Ok(result),
-        Err(e) => {
-            if let Ok(result) = format!("{}:{}", string, default_port).parse() {
-                Ok(result)
-            } else {
-                Err(DecodeError::from(e))
-            }
-        }
+        Err(_) => Ok(format!("{}:{}", string, default_port).parse()?),
     }
 }
 
@@ -109,19 +97,13 @@ fn decode_addr(buf: &[u8], offset: &mut usize, default_port: u16) -> DecodeResul
         return Ok(None);
     }
 
-    lazy_static! {
-        static ref PORT_REGEX: Regex = Regex::new("^:(\\d+)$").unwrap();
+    match string.find(':') {
+        Some(i) if i == 0 => Ok(Some(Addr::Port(string[i..].parse()?))),
+        _ => Ok(Some(Addr::SocketAddr(str_to_socket_addr(
+            string,
+            default_port,
+        )?))),
     }
-
-    if let Some(c) = PORT_REGEX.captures(&string) {
-        if let Some(port) = c.get(1) {
-            let port = port.as_str().parse()?;
-            return Ok(Some(Addr::Port(port)));
-        }
-    }
-
-    let socket_addr = str_to_socket_addr(string, default_port)?;
-    Ok(Some(Addr::SocketAddr(socket_addr)))
 }
 
 /// Decode a `std::vec::Vec<u8>` slice from a `u8` slice at s specific `offset`.
@@ -145,7 +127,7 @@ fn decode_vlp<'a>(buf: &'a [u8], offset: &mut usize) -> DecodeResult<Vec<&'a [u8
         if let Some(buf) = buf.get(start..*offset) {
             vector.push(buf);
         } else {
-            return Err(DecodeError::NotEnoughBytes);
+            return Err(DecodeErr::NotEnoughBytes);
         }
 
         if last {
@@ -154,33 +136,32 @@ fn decode_vlp<'a>(buf: &'a [u8], offset: &mut usize) -> DecodeResult<Vec<&'a [u8
     }
 }
 
-/// Decode an array of `u8` of the size of `32` from a `u8` slice at s specific `offset`.
-/// Increase the `offset` by the size of the array of `u8` of the size of `32`.
-fn u8_array_u8_32_array(array: &[u8]) -> DecodeResult<[u8; 32]> {
-    if array.len() != 32 {
-        return Err(DecodeError::Len);
-    }
-    Ok(array.try_into().unwrap())
+/// Decode an array of `u8` of the size of `32` from a `u8` slice
+fn slice_to_32_bytes(array: &[u8]) -> DecodeResult<[u8; 32]> {
+    Ok(array.try_into().map_err(|_| DecodeErr::Len)?)
 }
 
 /// Decode a `std::vec::Vec<[u8;32]>` from a `u8` slice at s specific `offset`.
 /// Increase the `offset` by the size of a `std::vec::Vec<[u8;32]>.
 fn decode_hashi(buf: &[u8], offset: &mut usize) -> DecodeResult<Vec<[u8; 32]>> {
-    let mut hashi = Vec::new();
-    for hash in decode_vlp(buf, offset)? {
-        if !hash.is_empty() {
-            hashi.push(u8_array_u8_32_array(hash)?);
-        }
-    }
-
-    Ok(hashi)
+    decode_vlp(buf, offset)?
+        .into_iter()
+        .filter_map(|hash| {
+            if !hash.is_empty() {
+                Some(slice_to_32_bytes(hash))
+            } else {
+                None
+            }
+        })
+        .collect::<Result<Vec<_>, _>>()
 }
 
 /// Decode a `std::vec::Vec<std::net::IpAddr>` from a `u8` slice at s specific `offset`.
 /// Increase the `offset` by the size of the `std::vec::Vec<std::net::IpAddr>`.
 fn decode_bootstrap_ipi(buf: &[u8], offset: &mut usize) -> DecodeResult<Vec<IpAddr>> {
+    let ips = decode_vlp(buf, offset)?;
     let mut bootstrap_ipi = Vec::new();
-    for ip in decode_vlp(buf, offset)? {
+    for ip in ips {
         bootstrap_ipi.push(from_utf8(ip)?.parse()?);
     }
     Ok(bootstrap_ipi)
@@ -189,98 +170,108 @@ fn decode_bootstrap_ipi(buf: &[u8], offset: &mut usize) -> DecodeResult<Vec<IpAd
 /// Decode an array of `u8` of the size of `32` from a `u8` slice at s specific `offset`.
 /// Increase the `offset` by the size of the array of `u8` of the size of `32`.
 fn decode_pk(buf: &[u8], offset: &mut usize) -> DecodeResult<[u8; 32]> {
-    let pk = decode_lp(buf, offset)?;
-    u8_array_u8_32_array(pk)
+    slice_to_32_bytes(decode_lp(buf, offset)?)
 }
 
 /// Decode a `crate::DnsStampType` from a `u8` slice at s specific `offset`.
 /// Increase the `offset` by the size of the `crate::DnsStampType`.
 fn decode_type(buf: &[u8], offset: &mut usize) -> DecodeResult<DnsStampType> {
     let type_ = decode_u8(buf, offset)?;
-    if let Some(type_) = DnsStampType::from_u8(type_) {
-        Ok(type_)
-    } else {
-        Err(DecodeError::UnknownType(type_))
-    }
+    DnsStampType::try_from(type_).map_err(|_| DecodeErr::UnknownType(type_))
 }
 
 /// Decode a `crate::Props` from a `u8` slice at s specific `offset`.
 /// Increase the `offset` by the size of the `crate::Props`.
 fn decode_props(buf: &[u8], offset: &mut usize) -> DecodeResult<Props> {
-    let props = decode_uint64(buf, offset)?;
+    let props = decode_u64(buf, offset)?;
     Ok(Props::from_bits_truncate(props))
 }
 
 impl DnsStamp {
     /// Decode a `crate::DnsStamp` from a `&str`.
     pub fn decode(stamp: &str) -> DecodeResult<DnsStamp> {
-        lazy_static! {
-            static ref DNS_STAMP_REGEX: Regex = Regex::new("^sdns://([A-Za-z0-9_-]+)$").unwrap();
-        }
+        if &stamp[0..7] == "sdns://" {
+            let base64 = &stamp[7..];
+            let bytes = BASE64URL_NOPAD.decode(base64.as_bytes())?;
+            let mut offset: usize = 0;
+            let stamp_type = decode_type(&bytes, &mut offset)?;
 
-        if let Some(c) = DNS_STAMP_REGEX.captures(&stamp) {
-            // Get the decoded base64 part.
-            if let Some(base64) = c.get(1) {
-                let bytes = BASE64URL_NOPAD.decode(base64.as_str().as_bytes())?;
-                let mut offset: usize = 0;
-                let type_ = decode_type(&bytes, &mut offset)?;
-                let dns_stamp = match type_ {
-                    DnsStampType::DnsCrypt => {
-                        let props = decode_props(&bytes, &mut offset)?;
-                        let addr = decode_socket_addr(&bytes, &mut offset, 443)?;
-                        let pk = decode_pk(&bytes, &mut offset)?;
-                        let provider_name = decode_str(&bytes, &mut offset)?.to_string();
-                        DnsStamp::DnsCrypt(props, addr, pk, provider_name)
-                    }
-                    DnsStampType::DnsOverHttps => {
-                        let props = decode_props(&bytes, &mut offset)?;
-                        let addr = decode_addr(&bytes, &mut offset, 443)?;
-                        let hashi = decode_hashi(&bytes, &mut offset)?;
-                        let hostname = decode_str(&bytes, &mut offset)?.to_string();
-                        let path = decode_str(&bytes, &mut offset)?.to_string();
-                        let bootstrap_ipi = if bytes.len() == offset {
-                            Vec::new()
-                        } else {
-                            decode_bootstrap_ipi(&bytes, &mut offset)?
-                        };
-                        DnsStamp::DnsOverHttps(props, addr, hashi, hostname, path, bootstrap_ipi)
-                    }
-                    DnsStampType::DnsOverTls => {
-                        let props = decode_props(&bytes, &mut offset)?;
-                        let addr = decode_addr(&bytes, &mut offset, 443)?;
-                        let hashi = decode_hashi(&bytes, &mut offset)?;
-                        let hostname = decode_str(&bytes, &mut offset)?.to_string();
-                        let bootstrap_ipi = if bytes.len() == offset {
-                            None
-                        } else {
-                            Some(decode_ip_addr(&bytes, &mut offset)?)
-                        };
-                        DnsStamp::DnsOverTls(props, addr, hashi, hostname, bootstrap_ipi)
-                    }
-                    DnsStampType::Plain => {
-                        let props = decode_props(&bytes, &mut offset)?;
-                        let addr = decode_ip_addr(&bytes, &mut offset)?;
-                        DnsStamp::DnsPlain(props, addr)
-                    }
-                    DnsStampType::AnonymizedDnsCryptRelay => {
-                        let addr = decode_addr(&bytes, &mut offset, 443)?;
-                        if let Some(addr) = addr {
-                            DnsStamp::AnonymizedDnsCryptRelay(addr)
-                        } else {
-                            return Err(DecodeError::MissingAddr);
-                        }
-                    }
-                };
-                if bytes.len() == offset {
-                    Ok(dns_stamp)
-                } else {
-                    Err(DecodeError::TooManyBytes)
+            let dns_stamp = match stamp_type {
+                DnsStampType::DnsCrypt => {
+                    let props = decode_props(&bytes, &mut offset)?;
+                    let addr = decode_socket_addr(&bytes, &mut offset, 443)?;
+                    let pk = decode_pk(&bytes, &mut offset)?;
+                    let provider_name = decode_str(&bytes, &mut offset)?.to_string();
+                    DnsStamp::DnsCrypt(DnsCrypt {
+                        props,
+                        addr,
+                        pk,
+                        provider_name,
+                    })
                 }
+                DnsStampType::DnsOverHttps => {
+                    let props = decode_props(&bytes, &mut offset)?;
+                    let addr = decode_addr(&bytes, &mut offset, 443)?;
+                    let hashi = decode_hashi(&bytes, &mut offset)?;
+                    let hostname = decode_str(&bytes, &mut offset)?.to_string();
+                    let path = decode_str(&bytes, &mut offset)?.to_string();
+                    let bootstrap_ipi = if bytes.len() == offset {
+                        Vec::new()
+                    } else {
+                        decode_bootstrap_ipi(&bytes, &mut offset)?
+                    };
+                    DnsStamp::DnsOverHttps(DOH {
+                        props,
+                        addr,
+                        hashi,
+                        hostname,
+                        path,
+                        bootstrap_ipi,
+                    })
+                }
+                DnsStampType::DnsOverTls => {
+                    let props = decode_props(&bytes, &mut offset)?;
+                    let addr = decode_addr(&bytes, &mut offset, 443)?;
+                    let hashi = decode_hashi(&bytes, &mut offset)?;
+                    let hostname = decode_str(&bytes, &mut offset)?.to_string();
+                    let bootstrap_ipi = if bytes.len() == offset {
+                        Vec::new()
+                    } else {
+                        decode_bootstrap_ipi(&bytes, &mut offset)?
+                    };
+                    DnsStamp::DnsOverTls(DnsOverTls {
+                        props,
+                        addr,
+                        hashi,
+                        hostname,
+                        bootstrap_ipi,
+                    })
+                }
+                DnsStampType::Plain => {
+                    let props = decode_props(&bytes, &mut offset)?;
+                    let addr = decode_ip_addr(&bytes, &mut offset)?;
+                    DnsStamp::DnsPlain(DnsPlain { props, addr })
+                }
+                DnsStampType::AnonymizedDnsCryptRelay => decode_addr(&bytes, &mut offset, 443)?
+                    .map(|addr| DnsStamp::AnonymizedDnsCryptRelay(AnonymizedDnsCryptRelay { addr }))
+                    .ok_or(DecodeErr::MissingAddr)?,
+            };
+            if bytes.len() == offset {
+                Ok(dns_stamp)
             } else {
-                Err(DecodeError::Regex)
+                Err(DecodeErr::TooManyBytes)
             }
         } else {
-            Err(DecodeError::Regex)
+            Err(DecodeErr::InvalidInput {
+                cause: "sdns:// prefix not present".to_string(),
+            })
         }
+    }
+}
+
+impl str::FromStr for DnsStamp {
+    type Err = DecodeErr;
+    fn from_str(s: &str) -> DecodeResult<Self> {
+        DnsStamp::decode(s)
     }
 }

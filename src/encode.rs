@@ -1,12 +1,15 @@
 //! This module contains all encode functions for the crate.
-use crate::{Addr, DnsStamp, DnsStampType, EncodeError, EncodeResult, Props};
+use crate::{
+    Addr, AnonymizedDnsCryptRelay, DnsCrypt, DnsOverTls, DnsPlain, DnsStamp, DnsStampType,
+    EncodeErr, EncodeResult, Props, DOH,
+};
 use data_encoding::BASE64URL_NOPAD;
-use num_traits::ToPrimitive;
+
 use std::net::{IpAddr, SocketAddr};
 
 /// Encode a `crate::DnsStampType` into a `std::vec::Vec<u8>`.
 fn encode_type(buffer: &mut Vec<u8>, dns_stamp_type: DnsStampType) {
-    buffer.push(dns_stamp_type.to_u8().unwrap());
+    buffer.push(dns_stamp_type as u8);
 }
 
 /// Encode a `DnsStampType` into a `std::vec::Vec<u8>`.
@@ -16,20 +19,16 @@ fn encode_props(buffer: &mut Vec<u8>, props: &Props) {
 }
 
 /// Encode a `u8` slice into a `std::vec::Vec<u8>`.
-fn encode_bytes(buffer: &mut Vec<u8>, bytes: &[u8]) -> EncodeResult<()> {
+fn encode_bytes(buffer: &mut Vec<u8>, bytes: impl AsRef<[u8]>) -> EncodeResult<()> {
+    let bytes = bytes.as_ref();
     let len = bytes.len();
     if len <= std::u8::MAX as usize {
         buffer.push(len as u8);
         buffer.extend(bytes);
         Ok(())
     } else {
-        Err(EncodeError::TooManyBytes)
+        Err(EncodeErr::TooManyBytes)
     }
-}
-
-/// Encode a `&str` as utf-8 into a `std::vec::Vec<u8>`.
-fn encode_string(buffer: &mut Vec<u8>, string: &str) -> EncodeResult<()> {
-    encode_bytes(buffer, string.as_bytes())
 }
 
 /// Convert a `crate::IpAddr` to a `String`.
@@ -46,7 +45,7 @@ fn ip_addr_string(ip_addr: &IpAddr) -> String {
 /// then encode only the `std::net::IpAddr`.
 fn encode_socket_addr(
     buffer: &mut Vec<u8>,
-    socket_addr: &SocketAddr,
+    socket_addr: SocketAddr,
     default_port: u16,
 ) -> EncodeResult<()> {
     let string = if socket_addr.port() == default_port {
@@ -56,26 +55,25 @@ fn encode_socket_addr(
         socket_addr.to_string()
     };
 
-    encode_string(buffer, &string)
+    encode_bytes(buffer, &string)
 }
 
 /// Encode a `crate::Addr` into a `std::vec::Vec<u8>`.
 /// If the `addr` is `None` then encode only the `default_port`.
-fn encode_addr(buffer: &mut Vec<u8>, addr: &Option<Addr>, default_port: u16) -> EncodeResult<()> {
+fn encode_addr(buffer: &mut Vec<u8>, addr: Option<Addr>, default_port: u16) -> EncodeResult<()> {
     if let Some(addr) = addr {
         match addr {
             Addr::SocketAddr(socket_addr) => encode_socket_addr(buffer, socket_addr, default_port),
             Addr::Port(port) => {
-                if *port == default_port {
-                    encode_string(buffer, "")
+                if port == default_port {
+                    encode_bytes(buffer, "")
                 } else {
-                    let string = format!(":{}", *port);
-                    encode_string(buffer, &string)
+                    encode_bytes(buffer, &format!(":{}", port))
                 }
             }
         }
     } else {
-        encode_string(buffer, "")
+        encode_bytes(buffer, "")
     }
 }
 
@@ -83,7 +81,7 @@ fn encode_addr(buffer: &mut Vec<u8>, addr: &Option<Addr>, default_port: u16) -> 
 fn encode_ip_addr(buffer: &mut Vec<u8>, ip_addr: &IpAddr) -> EncodeResult<()> {
     let string = ip_addr_string(ip_addr);
 
-    encode_string(buffer, &string)
+    encode_bytes(buffer, &string)
 }
 
 /// Encode a `[u8;32]` into a `std::vec::Vec<u8>`.
@@ -107,14 +105,14 @@ fn encode_vlp(buffer: &mut Vec<u8>, vlp: &[&[u8]]) -> EncodeResult<()> {
                     buffer.push((len ^ 0x80) as u8);
                     buffer.extend(*bytes);
                 } else {
-                    return Err(EncodeError::TooManyBytes);
+                    return Err(EncodeErr::TooManyBytes);
                 }
             }
         }
         if let Some(bytes) = vlp.get(len - 1) {
             encode_bytes(buffer, *bytes)
         } else {
-            Err(EncodeError::EmptyArray)
+            Err(EncodeErr::EmptyArray)
         }
     }
 }
@@ -147,42 +145,60 @@ impl DnsStamp {
     pub fn encode(&self) -> EncodeResult<String> {
         let mut buffer = Vec::new();
         match self {
-            DnsStamp::DnsCrypt(props, addr, pk, provider_name) => {
+            DnsStamp::DnsCrypt(DnsCrypt {
+                props,
+                addr,
+                pk,
+                provider_name,
+            }) => {
                 encode_type(&mut buffer, DnsStampType::DnsCrypt);
                 encode_props(&mut buffer, props);
-                encode_socket_addr(&mut buffer, addr, 443)?;
+                encode_socket_addr(&mut buffer, *addr, 443)?;
                 encode_pk(&mut buffer, pk)?;
-                encode_string(&mut buffer, provider_name)?;
+                encode_bytes(&mut buffer, provider_name)?;
             }
-            DnsStamp::DnsOverHttps(props, addr, hashi, hostname, path, bootstrap_ipi) => {
+            DnsStamp::DnsOverHttps(DOH {
+                props,
+                addr,
+                hashi,
+                hostname,
+                path,
+                bootstrap_ipi,
+            }) => {
                 encode_type(&mut buffer, DnsStampType::DnsOverHttps);
                 encode_props(&mut buffer, props);
-                encode_addr(&mut buffer, addr, 443)?;
+                encode_addr(&mut buffer, *addr, 443)?;
                 encode_hashi(&mut buffer, hashi)?;
-                encode_string(&mut buffer, hostname)?;
-                encode_string(&mut buffer, path)?;
+                encode_bytes(&mut buffer, hostname)?;
+                encode_bytes(&mut buffer, path)?;
                 if !bootstrap_ipi.is_empty() {
                     encode_bootstrap_ipi(&mut buffer, bootstrap_ipi)?;
                 }
             }
-            DnsStamp::DnsOverTls(props, addr, hashi, hostname, bootstrap_ipi) => {
+            DnsStamp::DnsOverTls(DnsOverTls {
+                props,
+                addr,
+                hashi,
+                hostname,
+                bootstrap_ipi,
+            }) => {
                 encode_type(&mut buffer, DnsStampType::DnsOverTls);
                 encode_props(&mut buffer, props);
-                encode_addr(&mut buffer, addr, 443)?;
+                encode_addr(&mut buffer, *addr, 443)?;
                 encode_hashi(&mut buffer, hashi)?;
-                encode_string(&mut buffer, hostname)?;
-                if let Some(bootstrap_ipi) = bootstrap_ipi {
-                    encode_ip_addr(&mut buffer, bootstrap_ipi)?;
+                encode_bytes(&mut buffer, hostname)?;
+                if !bootstrap_ipi.is_empty() {
+                    encode_bootstrap_ipi(&mut buffer, bootstrap_ipi)?;
                 }
             }
-            DnsStamp::DnsPlain(props, addr) => {
+            DnsStamp::DnsPlain(DnsPlain { props, addr }) => {
                 encode_type(&mut buffer, DnsStampType::Plain);
                 encode_props(&mut buffer, props);
                 encode_ip_addr(&mut buffer, addr)?;
             }
-            DnsStamp::AnonymizedDnsCryptRelay(addr) => {
+            DnsStamp::AnonymizedDnsCryptRelay(AnonymizedDnsCryptRelay { addr }) => {
                 encode_type(&mut buffer, DnsStampType::AnonymizedDnsCryptRelay);
-                encode_addr(&mut buffer, &Some(addr.clone()), 443)?;
+                encode_addr(&mut buffer, Some(*addr), 443)?;
             }
         }
         Ok(format!("sdns://{}", BASE64URL_NOPAD.encode(&buffer)))

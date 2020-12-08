@@ -1,4 +1,5 @@
 # dns-stamp-parser
+
 A library to encode and decode [DNS stamp](https://dnscrypt.info/stamps-specifications).
 [![Build status](https://travis-ci.org/LinkTed/dns-stamp-parser.svg?branch=master)](https://travis-ci.org/LinkTed/dns-stamp-parser)
 [![Code coverage](https://codecov.io/gh/LinkTed/dns-stamp-parser/branch/master/graph/badge.svg)](https://codecov.io/gh/LinkTed/dns-stamp-parser)
@@ -6,13 +7,16 @@ A library to encode and decode [DNS stamp](https://dnscrypt.info/stamps-specific
 [![License](https://img.shields.io/crates/l/dns-stamp-parser.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 ## Usage
+
 Add this to your `Cargo.toml`:
+
 ```toml
 [dependencies]
-dns-stamp-parser = "1.0"
+dns-stamp-parser = "2.0"
 ```
 
 ## Example
+
 ```rust
 use dns_stamp_parser::DnsStamp;
 

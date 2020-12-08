@@ -1,10 +1,17 @@
-use dns_stamp_parser::{Addr, DnsStamp, Props};
+use dns_stamp_parser::{Addr, DnsStamp, Props, DOH};
 
 fn main() {
     let props = Props::DNSSEC;
     let addr = Some(Addr::SocketAddr("217.169.20.22:443".parse().unwrap()));
     let hostname = "dns.aa.net.uk".to_string();
     let path = "/dns-query".to_string();
-    let dns_stamp = DnsStamp::DnsOverHttps(props, addr, Vec::new(), hostname, path, Vec::new());
+    let dns_stamp = DnsStamp::DnsOverHttps(DOH {
+        props,
+        addr,
+        hashi: Vec::new(),
+        hostname,
+        path,
+        bootstrap_ipi: Vec::new(),
+    });
     println!("{}", dns_stamp.encode().unwrap());
 }
