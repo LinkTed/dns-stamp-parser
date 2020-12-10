@@ -1,7 +1,7 @@
 //! This module contains all encode functions for the crate.
 use crate::{
-    Addr, AnonymizedDnsCryptRelay, DnsCrypt, DnsOverTls, DnsPlain, DnsStamp, DnsStampType,
-    EncodeErr, EncodeResult, Props, DOH,
+    Addr, AnonymizedDnsCryptRelay, DnsCrypt, DnsOverHttps, DnsOverTls, DnsPlain, DnsStamp,
+    DnsStampType, EncodeError, EncodeResult, Props,
 };
 use data_encoding::BASE64URL_NOPAD;
 
@@ -27,12 +27,12 @@ fn encode_bytes(buffer: &mut Vec<u8>, bytes: impl AsRef<[u8]>) -> EncodeResult<(
         buffer.extend(bytes);
         Ok(())
     } else {
-        Err(EncodeErr::TooManyBytes)
+        Err(EncodeError::TooManyBytes)
     }
 }
 
 /// Convert a `crate::IpAddr` to a `String`.
-fn ip_addr_string(ip_addr: &IpAddr) -> String {
+fn ip_addr_string(ip_addr: IpAddr) -> String {
     let mut string = ip_addr.to_string();
     if ip_addr.is_ipv6() {
         string = format!("[{}]", string);
@@ -49,8 +49,7 @@ fn encode_socket_addr(
     default_port: u16,
 ) -> EncodeResult<()> {
     let string = if socket_addr.port() == default_port {
-        let ip_addr = socket_addr.ip();
-        ip_addr_string(&ip_addr)
+        ip_addr_string(socket_addr.ip())
     } else {
         socket_addr.to_string()
     };
@@ -78,7 +77,7 @@ fn encode_addr(buffer: &mut Vec<u8>, addr: Option<Addr>, default_port: u16) -> E
 }
 
 /// Encode a `std::net::IpAddr` into a `std::vec::Vec<u8>`.
-fn encode_ip_addr(buffer: &mut Vec<u8>, ip_addr: &IpAddr) -> EncodeResult<()> {
+fn encode_ip_addr(buffer: &mut Vec<u8>, ip_addr: IpAddr) -> EncodeResult<()> {
     let string = ip_addr_string(ip_addr);
 
     encode_bytes(buffer, &string)
@@ -93,51 +92,45 @@ fn encode_pk(buffer: &mut Vec<u8>, pk: &[u8; 32]) -> EncodeResult<()> {
 /// See [`VLP()`].
 ///
 /// [`VLP()`]:  https://dnscrypt.info/stamps-specifications#common-definitions
-fn encode_vlp(buffer: &mut Vec<u8>, vlp: &[&[u8]]) -> EncodeResult<()> {
+fn encode_vlp<T: AsRef<[u8]>>(buffer: &mut Vec<u8>, vlp: &[T]) -> EncodeResult<()> {
     if vlp.is_empty() {
         encode_bytes(buffer, &[])
     } else {
         let len = vlp.len();
         if let Some(array) = vlp.get(..(len - 1)) {
             for bytes in array {
+                let bytes = bytes.as_ref();
                 let len = bytes.len();
                 if len <= 0x80 {
                     buffer.push((len ^ 0x80) as u8);
-                    buffer.extend(*bytes);
+                    buffer.extend(bytes);
                 } else {
-                    return Err(EncodeErr::TooManyBytes);
+                    return Err(EncodeError::TooManyBytes);
                 }
             }
         }
         if let Some(bytes) = vlp.get(len - 1) {
-            encode_bytes(buffer, *bytes)
+            encode_bytes(buffer, bytes)
         } else {
-            Err(EncodeErr::EmptyArray)
+            Err(EncodeError::EmptyArray)
         }
     }
 }
 
 /// Encode a `std::vec::Vec<[u8;32]>` into a `std::vec::Vec<u8>`.
 fn encode_hashi(buffer: &mut Vec<u8>, hashi: &[[u8; 32]]) -> EncodeResult<()> {
-    let mut vlp = Vec::new();
-    for hash in hashi {
-        vlp.push(&hash[..]);
-    }
-    encode_vlp(buffer, &vlp)
+    encode_vlp(buffer, hashi)
 }
 
 /// Encode a `std::vec::Vec<std::net::IpAddr>` into a `std::vec::Vec<u8>`.
 fn encode_bootstrap_ipi(buffer: &mut Vec<u8>, bootstrap_ipi: &[IpAddr]) -> EncodeResult<()> {
-    let mut bootstrap_ipi_string = Vec::new();
-    for ip_addr in bootstrap_ipi {
-        bootstrap_ipi_string.push(ip_addr.to_string());
-    }
-
-    let mut vlp = Vec::new();
-    for string in &bootstrap_ipi_string {
-        vlp.push(string.as_bytes());
-    }
-    encode_vlp(buffer, &vlp)
+    encode_vlp(
+        buffer,
+        &bootstrap_ipi
+            .iter()
+            .map(|ip| ip.to_string())
+            .collect::<Vec<_>>(),
+    )
 }
 
 impl DnsStamp {
@@ -157,7 +150,7 @@ impl DnsStamp {
                 encode_pk(&mut buffer, pk)?;
                 encode_bytes(&mut buffer, provider_name)?;
             }
-            DnsStamp::DnsOverHttps(DOH {
+            DnsStamp::DnsOverHttps(DnsOverHttps {
                 props,
                 addr,
                 hashi,
@@ -194,7 +187,7 @@ impl DnsStamp {
             DnsStamp::DnsPlain(DnsPlain { props, addr }) => {
                 encode_type(&mut buffer, DnsStampType::Plain);
                 encode_props(&mut buffer, props);
-                encode_ip_addr(&mut buffer, addr)?;
+                encode_ip_addr(&mut buffer, *addr)?;
             }
             DnsStamp::AnonymizedDnsCryptRelay(AnonymizedDnsCryptRelay { addr }) => {
                 encode_type(&mut buffer, DnsStampType::AnonymizedDnsCryptRelay);

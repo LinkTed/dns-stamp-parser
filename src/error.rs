@@ -4,14 +4,14 @@ use data_encoding::DecodeError as DataEncodingDecodeError;
 use std::{net::AddrParseError, num::ParseIntError, str::Utf8Error};
 
 /// Result for encoding
-pub type EncodeResult<T> = Result<T, EncodeErr>;
+pub type EncodeResult<T> = Result<T, EncodeError>;
 
 /// Result for decoding
-pub type DecodeResult<T> = Result<T, DecodeErr>;
+pub type DecodeResult<T> = Result<T, DecodeError>;
 
 /// This enum represent all decode errors.
 #[derive(Error, Debug, PartialEq, Eq)]
-pub enum DecodeErr {
+pub enum DecodeError {
     /// This error occurs if the base64 string could not be decoded.
     #[error("error parsing base 64")]
     Base64Error(#[from] DataEncodingDecodeError),
@@ -50,7 +50,7 @@ pub enum DecodeErr {
 
 /// This enum represent all encode errors.
 #[derive(Error, Debug, PartialEq, Eq)]
-pub enum EncodeErr {
+pub enum EncodeError {
     /// This error occurs if there is too many bytes to encode.
     #[error("input too large")]
     TooManyBytes,

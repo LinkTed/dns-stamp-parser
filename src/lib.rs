@@ -19,7 +19,7 @@ mod decode;
 mod encode;
 mod error;
 
-pub use crate::error::{DecodeErr, DecodeResult, EncodeErr, EncodeResult};
+pub use crate::error::{DecodeError, DecodeResult, EncodeError, EncodeResult};
 use bitflags::bitflags;
 use std::{
     convert::TryFrom,
@@ -109,7 +109,7 @@ pub enum DnsStamp {
     /// See [DNS-over-HTTPS stamps].
     ///
     /// [DNS-over-HTTPS stamps]: https://dnscrypt.info/stamps-specifications#dns-over-https-stamps
-    DnsOverHttps(DOH),
+    DnsOverHttps(DnsOverHttps),
     /// See [DNS-over-TLS stamps].
     ///
     /// [DNS-over-TLS stamps]: https://dnscrypt.info/stamps-specifications#dns-over-tls-stamps
@@ -140,7 +140,7 @@ pub struct DnsCrypt {
 
 /// DoH configuration parsed from a dnsstamp
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DOH {
+pub struct DnsOverHttps {
     /// server properties
     pub props: Props,
     /// addr is the IP address of the server. It can be an empty string,
@@ -206,7 +206,7 @@ pub struct AnonymizedDnsCryptRelay {
     pub addr: Addr,
 }
 
-impl DOH {
+impl DnsOverHttps {
     /// get hostname for DOH config
     pub fn hostname(&self) -> String {
         hostname(self.addr, &self.hostname)

@@ -1,9 +1,9 @@
-use dns_stamp_parser::{DnsStamp, Props, DOH};
+use dns_stamp_parser::{DnsOverHttps, DnsStamp, Props};
 
 fn main() {
     let stamp = "sdns://AgcAAAAAAAAADTIxNy4xNjkuMjAuMjIgPhoaD2xT8-l6SS1XCEtbmAcFnuBXqxUFh2_YP9o9uDgNZG5zLmFhLm5ldC51awovZG5zLXF1ZXJ5";
     let dns_stamp = DnsStamp::decode(stamp).unwrap();
-    if let DnsStamp::DnsOverHttps(DOH {
+    if let DnsStamp::DnsOverHttps(DnsOverHttps {
         props,
         addr,
         hashi,

@@ -1,7 +1,7 @@
 //! This module contains all decode functions for this crate.
 use crate::{
-    Addr, AnonymizedDnsCryptRelay, DecodeErr, DecodeResult, DnsCrypt, DnsOverTls, DnsPlain,
-    DnsStamp, DnsStampType, Props, DOH,
+    Addr, AnonymizedDnsCryptRelay, DecodeError, DecodeResult, DnsCrypt, DnsOverHttps, DnsOverTls,
+    DnsPlain, DnsStamp, DnsStampType, Props,
 };
 use data_encoding::BASE64URL_NOPAD;
 use std::{
@@ -17,7 +17,7 @@ fn decode<'a, T>(buf: &'a [u8], offset: &mut usize) -> DecodeResult<&'a [u8]> {
     let start = *offset;
     *offset += size_of::<T>();
 
-    buf.get(start..*offset).ok_or(DecodeErr::NotEnoughBytes)
+    buf.get(start..*offset).ok_or(DecodeError::NotEnoughBytes)
 }
 
 /// Decode a `u64` from a `u8` slice at a specific `offset`.
@@ -45,7 +45,7 @@ fn decode_lp<'a>(buf: &'a [u8], offset: &mut usize) -> DecodeResult<&'a [u8]> {
     let start = *offset;
     *offset += len as usize;
 
-    buf.get(start..*offset).ok_or(DecodeErr::NotEnoughBytes)
+    buf.get(start..*offset).ok_or(DecodeError::NotEnoughBytes)
 }
 
 /// Decode a `str` slice from a `u8` slice at a specific `offset`.
@@ -127,7 +127,7 @@ fn decode_vlp<'a>(buf: &'a [u8], offset: &mut usize) -> DecodeResult<Vec<&'a [u8
         if let Some(buf) = buf.get(start..*offset) {
             vector.push(buf);
         } else {
-            return Err(DecodeErr::NotEnoughBytes);
+            return Err(DecodeError::NotEnoughBytes);
         }
 
         if last {
@@ -138,7 +138,7 @@ fn decode_vlp<'a>(buf: &'a [u8], offset: &mut usize) -> DecodeResult<Vec<&'a [u8
 
 /// Decode an array of `u8` of the size of `32` from a `u8` slice
 fn slice_to_32_bytes(array: &[u8]) -> DecodeResult<[u8; 32]> {
-    Ok(array.try_into().map_err(|_| DecodeErr::Len)?)
+    Ok(array.try_into().map_err(|_| DecodeError::Len)?)
 }
 
 /// Decode a `std::vec::Vec<[u8;32]>` from a `u8` slice at s specific `offset`.
@@ -177,7 +177,7 @@ fn decode_pk(buf: &[u8], offset: &mut usize) -> DecodeResult<[u8; 32]> {
 /// Increase the `offset` by the size of the `crate::DnsStampType`.
 fn decode_type(buf: &[u8], offset: &mut usize) -> DecodeResult<DnsStampType> {
     let type_ = decode_u8(buf, offset)?;
-    DnsStampType::try_from(type_).map_err(|_| DecodeErr::UnknownType(type_))
+    DnsStampType::try_from(type_).map_err(|_| DecodeError::UnknownType(type_))
 }
 
 /// Decode a `crate::Props` from a `u8` slice at s specific `offset`.
@@ -220,7 +220,7 @@ impl DnsStamp {
                     } else {
                         decode_bootstrap_ipi(&bytes, &mut offset)?
                     };
-                    DnsStamp::DnsOverHttps(DOH {
+                    DnsStamp::DnsOverHttps(DnsOverHttps {
                         props,
                         addr,
                         hashi,
@@ -254,15 +254,15 @@ impl DnsStamp {
                 }
                 DnsStampType::AnonymizedDnsCryptRelay => decode_addr(&bytes, &mut offset, 443)?
                     .map(|addr| DnsStamp::AnonymizedDnsCryptRelay(AnonymizedDnsCryptRelay { addr }))
-                    .ok_or(DecodeErr::MissingAddr)?,
+                    .ok_or(DecodeError::MissingAddr)?,
             };
             if bytes.len() == offset {
                 Ok(dns_stamp)
             } else {
-                Err(DecodeErr::TooManyBytes)
+                Err(DecodeError::TooManyBytes)
             }
         } else {
-            Err(DecodeErr::InvalidInput {
+            Err(DecodeError::InvalidInput {
                 cause: "sdns:// prefix not present".to_string(),
             })
         }
@@ -270,7 +270,7 @@ impl DnsStamp {
 }
 
 impl str::FromStr for DnsStamp {
-    type Err = DecodeErr;
+    type Err = DecodeError;
     fn from_str(s: &str) -> DecodeResult<Self> {
         DnsStamp::decode(s)
     }
