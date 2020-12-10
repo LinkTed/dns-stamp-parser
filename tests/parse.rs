@@ -1,6 +1,52 @@
-use dns_stamp_parser::DnsStamp;
+use data_encoding::{DecodeError as DataEncodingDecodeError, DecodeKind};
+use dns_stamp_parser::{DecodeError, DnsStamp};
+
+#[test]
+fn parse_fail_one() {
+    let stamp = "sdns://";
+
+    assert_eq!(DnsStamp::decode(stamp), Err(DecodeError::NotEnoughBytes))
+}
+
+#[test]
+fn parse_fail_two() {
+    let stamp = "sdns://>";
+
+    assert_eq!(
+        stamp.parse::<DnsStamp>(),
+        Err(DecodeError::Base64Error(DataEncodingDecodeError {
+            position: 0,
+            kind: DecodeKind::Length
+        }))
+    )
+}
+
+#[test]
+fn parse_fail_three() {
+    let stamp = "sdns://A";
+    assert_eq!(
+        stamp.parse::<DnsStamp>(),
+        Err(DecodeError::Base64Error(DataEncodingDecodeError {
+            position: 0,
+            kind: DecodeKind::Length
+        }))
+    )
+}
+
+#[test]
+fn decode_type() {
+    let stamp = "sdns://DzA";
+    assert_eq!(DnsStamp::decode(stamp), Err(DecodeError::UnknownType(15)))
+}
+
+#[test]
+fn decode_uint64() {
+    let stamp = "sdns://AA";
+    assert_eq!(DnsStamp::decode(stamp), Err(DecodeError::NotEnoughBytes))
+}
+
 // The list is from https://github.com/DNSCrypt/dnscrypt-resolvers/blob/master/v2/public-resolvers.md
-static DNS_STAMPS: [&'static str;15] = [
+static DNS_STAMPS: [&str; 15] = [
     "sdns://AgcAAAAAAAAAACA-GhoPbFPz6XpJLVcIS1uYBwWe4FerFQWHb9g_2j24OBRpYmtzdHVybS5zeW5vbG9neS5tZQovZG5zLXF1ZXJ5",
     "sdns://AQcAAAAAAAAAEDg1LjUuOTMuMjMwOjg0NDMgwc9XUACwW8JsYh9ez5qiVgrOvwB-vss6f_SyDeC0Oe4YMi5kbnNjcnlwdC1jZXJ0Lmlia3N0dXJt",
     "sdns://AQcAAAAAAAAALlsyYTAyOjEyMDU6NTA1NTpkZTYwOmIyNmU6YmZmZjpmZTFkOmUxOWJdOjg0NDMgwc9XUACwW8JsYh9ez5qiVgrOvwB-vss6f_SyDeC0Oe4YMi5kbnNjcnlwdC1jZXJ0Lmlia3N0dXJt",
@@ -24,9 +70,9 @@ static DNS_STAMPS: [&'static str;15] = [
 #[test]
 fn opennic() {
     for stamp_1 in DNS_STAMPS.iter() {
-        match DnsStamp::decode(stamp_1) {
+        match dbg!(stamp_1.parse::<DnsStamp>()) {
             Ok(dns_stamp_1) => match dns_stamp_1.encode() {
-                Ok(stamp_2) => match DnsStamp::decode(&stamp_2) {
+                Ok(stamp_2) => match stamp_2.parse::<DnsStamp>() {
                     Ok(dns_stamp_2) => {
                         if dns_stamp_1 != dns_stamp_2 {
                             panic!("Not equal: {} {}", stamp_1, stamp_2);

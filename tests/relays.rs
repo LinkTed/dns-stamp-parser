@@ -1,6 +1,7 @@
 use dns_stamp_parser::DnsStamp;
+
 // The list is from https://github.com/DNSCrypt/dnscrypt-resolvers/blob/master/v2/public-resolvers.md
-static DNS_STAMPS: [&'static str; 40] = [
+static DNS_STAMPS: [&str; 40] = [
     "sdns://gRE1MS4xNTguMTY2Ljk3OjQ0Mw",
     "sdns://gRpbMjAwMTpiYzg6MTgyNDo3Mzg6OjFdOjQ0Mw",
     "sdns://gRE1MS4xNS4xMjQuMjA4OjQ0Mw",
