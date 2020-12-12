@@ -190,8 +190,7 @@ fn decode_props(buf: &[u8], offset: &mut usize) -> DecodeResult<Props> {
 impl DnsStamp {
     /// Decode a `crate::DnsStamp` from a `&str`.
     pub fn decode(stamp: &str) -> DecodeResult<DnsStamp> {
-        if &stamp[0..7] == "sdns://" {
-            let base64 = &stamp[7..];
+        if let Some(base64) = stamp.strip_prefix("sdns://") {
             let bytes = BASE64URL_NOPAD.decode(base64.as_bytes())?;
             let mut offset: usize = 0;
             let stamp_type = decode_type(&bytes, &mut offset)?;
