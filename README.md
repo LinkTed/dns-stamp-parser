@@ -1,7 +1,7 @@
 # dns-stamp-parser
 
 A library to encode and decode [DNS stamp](https://dnscrypt.info/stamps-specifications).
-[![Build status](https://travis-ci.org/LinkTed/dns-stamp-parser.svg?branch=master)](https://travis-ci.org/LinkTed/dns-stamp-parser)
+[![Build status](https://github.com/LinkTed/dns-stamp-parser/workflows/Continuous%20Integration/badge.svg)](https://github.com/LinkTed/dns-stamp-parser/actions?query=workflow%3A%22Continuous+Integration%22)
 [![Dependency status](https://deps.rs/repo/github/linkted/dns-stamp-parser/status.svg)](https://deps.rs/repo/github/linkted/dns-stamp-parser)
 [![Code coverage](https://codecov.io/gh/LinkTed/dns-stamp-parser/branch/master/graph/badge.svg)](https://codecov.io/gh/LinkTed/dns-stamp-parser)
 [![Latest version](https://img.shields.io/crates/v/dns-stamp-parser.svg)](https://crates.io/crates/dns-stamp-parser)

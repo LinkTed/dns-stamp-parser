@@ -10,9 +10,6 @@ repository = "https://github.com/LinkTed/dns-stamp-parser"
 keywords = ["doh", "dns", "stamps", "dnscrypt"]
 categories = ["parser-implementations", "encoding"]
 
-[badges]
-travis-ci = { repository = "LinkTed/dns-stamp-parser" }
-
 [dependencies]
 data-encoding = "~2.3.2"
 bitflags = "~1.2.1"
