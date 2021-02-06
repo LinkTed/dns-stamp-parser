@@ -255,6 +255,7 @@ fn bootstrap_hostname(addr: Option<Addr>, host: &str, bootstrap: &[IpAddr]) -> i
                 socket_addr,
                 protocol: Protocol::Udp,
                 tls_dns_name: None,
+                trust_nx_responses: false,
             });
         }
 
