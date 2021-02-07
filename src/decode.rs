@@ -7,7 +7,7 @@ use data_encoding::BASE64URL_NOPAD;
 use std::{
     convert::{TryFrom, TryInto},
     mem::size_of,
-    net::{IpAddr, SocketAddr},
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     str::{self, from_utf8},
 };
 
@@ -60,7 +60,18 @@ fn decode_str<'a>(buf: &'a [u8], offset: &mut usize) -> DecodeResult<&'a str> {
 fn decode_ip_addr(buf: &[u8], offset: &mut usize) -> DecodeResult<IpAddr> {
     let string = decode_str(buf, offset)?;
 
-    let ip_addr = string.parse()?;
+    // Check if the addr is IPv6
+    let ip_addr = if let Some(string) = string.strip_prefix('[') {
+        if let Some(string) = string.strip_suffix(']') {
+            let ipv6_addr = string.parse::<Ipv6Addr>()?;
+            IpAddr::V6(ipv6_addr)
+        } else {
+            return Err(DecodeError::AddrParseIpv6ClosingBracket);
+        }
+    } else {
+        let ipv4_addr = string.parse::<Ipv4Addr>()?;
+        IpAddr::V4(ipv4_addr)
+    };
     Ok(ip_addr)
 }
 

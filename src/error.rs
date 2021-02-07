@@ -27,6 +27,9 @@ pub enum DecodeError {
     /// This error occurs if the address could not be decoded.
     #[error("failed to parse address")]
     AddrParseError(#[from] AddrParseError),
+    /// This error occurs if the IPv6 address does not have the closing bracket ']'.
+    #[error("missing closing bracket for IPv6")]
+    AddrParseIpv6ClosingBracket,
     /// This error occurs if an address is missing.
     #[error("address missing")]
     MissingAddr,
