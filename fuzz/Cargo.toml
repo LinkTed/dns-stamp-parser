@@ -1,0 +1,18 @@
+[package]
+name = "fuzz"
+version = "0.1.0"
+authors = ["LinkTed <link.ted@mailbox.org>"]
+edition = "2018"
+
+[dependencies]
+honggfuzz = "~0.5.52"
+base64 = "~0.13.0"
+
+[dependencies.dns-stamp-parser]
+path = ".."
+
+[[bin]]
+name = "decode_encode_decode"
+path = "src/decode_encode_decode.rs"
+test = false
+doc = false
