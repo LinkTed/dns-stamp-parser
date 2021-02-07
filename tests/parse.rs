@@ -1,4 +1,4 @@
-use data_encoding::{DecodeError as DataEncodingDecodeError, DecodeKind};
+use base64::DecodeError as Base64Error;
 use dns_stamp_parser::{DecodeError, DnsStamp};
 
 #[test]
@@ -14,10 +14,7 @@ fn parse_fail_two() {
 
     assert_eq!(
         stamp.parse::<DnsStamp>(),
-        Err(DecodeError::Base64Error(DataEncodingDecodeError {
-            position: 0,
-            kind: DecodeKind::Length
-        }))
+        Err(DecodeError::Base64Error(Base64Error::InvalidByte(0, 62)))
     )
 }
 
@@ -26,10 +23,7 @@ fn parse_fail_three() {
     let stamp = "sdns://A";
     assert_eq!(
         stamp.parse::<DnsStamp>(),
-        Err(DecodeError::Base64Error(DataEncodingDecodeError {
-            position: 0,
-            kind: DecodeKind::Length
-        }))
+        Err(DecodeError::Base64Error(Base64Error::InvalidLength))
     )
 }
 

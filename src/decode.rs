@@ -3,7 +3,7 @@ use crate::{
     Addr, AnonymizedDnsCryptRelay, DecodeError, DecodeResult, DnsCrypt, DnsOverHttps, DnsOverTls,
     DnsPlain, DnsStamp, DnsStampType, Props,
 };
-use data_encoding::BASE64URL_NOPAD;
+use base64::{decode_config, URL_SAFE_NO_PAD};
 use std::{
     convert::{TryFrom, TryInto},
     mem::size_of,
@@ -202,7 +202,7 @@ impl DnsStamp {
     /// Decode a `crate::DnsStamp` from a `&str`.
     pub fn decode(stamp: &str) -> DecodeResult<DnsStamp> {
         if let Some(base64) = stamp.strip_prefix("sdns://") {
-            let bytes = BASE64URL_NOPAD.decode(base64.as_bytes())?;
+            let bytes = decode_config(base64, URL_SAFE_NO_PAD)?;
             let mut offset: usize = 0;
             let stamp_type = decode_type(&bytes, &mut offset)?;
 

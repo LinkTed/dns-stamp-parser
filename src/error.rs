@@ -1,7 +1,6 @@
-use thiserror::Error;
-
-use data_encoding::DecodeError as DataEncodingDecodeError;
+use base64::DecodeError as Base64Error;
 use std::{net::AddrParseError, num::ParseIntError, str::Utf8Error};
+use thiserror::Error;
 
 /// Result for encoding
 pub type EncodeResult<T> = Result<T, EncodeError>;
@@ -14,7 +13,7 @@ pub type DecodeResult<T> = Result<T, DecodeError>;
 pub enum DecodeError {
     /// This error occurs if the base64 string could not be decoded.
     #[error("error parsing base 64")]
-    Base64Error(#[from] DataEncodingDecodeError),
+    Base64Error(#[from] Base64Error),
     /// This error occurs if there is not enough bytes.
     #[error("ran out of bytes to parse")]
     NotEnoughBytes,

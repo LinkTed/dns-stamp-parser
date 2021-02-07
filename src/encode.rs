@@ -3,8 +3,7 @@ use crate::{
     Addr, AnonymizedDnsCryptRelay, DnsCrypt, DnsOverHttps, DnsOverTls, DnsPlain, DnsStamp,
     DnsStampType, EncodeError, EncodeResult, Props,
 };
-use data_encoding::BASE64URL_NOPAD;
-
+use base64::{encode_config, URL_SAFE_NO_PAD};
 use std::net::{IpAddr, SocketAddr};
 
 /// Encode a `crate::DnsStampType` into a `std::vec::Vec<u8>`.
@@ -194,6 +193,10 @@ impl DnsStamp {
                 encode_addr(&mut buffer, Some(*addr), 443)?;
             }
         }
-        Ok(format!("sdns://{}", BASE64URL_NOPAD.encode(&buffer)))
+
+        Ok(format!(
+            "sdns://{}",
+            encode_config(&buffer, URL_SAFE_NO_PAD)
+        ))
     }
 }
