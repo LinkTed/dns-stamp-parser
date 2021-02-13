@@ -68,20 +68,26 @@ fn encode_socket_addr(
     encode_bytes(buffer, &string)
 }
 
+/// Convert a `crate::Addr` to a `String`.
+fn addr_to_string(addr: &Addr, default_port: u16) -> String {
+    match addr {
+        Addr::SocketAddr(socket_addr) => socket_addr_to_string(socket_addr, default_port),
+        Addr::Port(port) => {
+            if *port == default_port {
+                "".to_string()
+            } else {
+                format!(":{}", port)
+            }
+        }
+    }
+}
+
 /// Encode a `crate::Addr` into a `std::vec::Vec<u8>`.
 /// If the `addr` is `None` then encode only the `default_port`.
 fn encode_addr(buffer: &mut Vec<u8>, addr: Option<&Addr>, default_port: u16) -> EncodeResult<()> {
     if let Some(addr) = addr {
-        match addr {
-            Addr::SocketAddr(socket_addr) => encode_socket_addr(buffer, socket_addr, default_port),
-            Addr::Port(port) => {
-                if *port == default_port {
-                    encode_bytes(buffer, "")
-                } else {
-                    encode_bytes(buffer, &format!(":{}", port))
-                }
-            }
-        }
+        let string = addr_to_string(addr, default_port);
+        encode_bytes(buffer, string)
     } else {
         encode_bytes(buffer, "")
     }

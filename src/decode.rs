@@ -100,6 +100,15 @@ fn decode_socket_addr(
     str_to_socket_addr(string, default_port)
 }
 
+/// Convert a `str` to a `crate::Addr`.
+/// If the `str` contains only a address then use `default_port` as a port.
+fn str_to_addr(string: &str, default_port: u16) -> DecodeResult<Addr> {
+    match string.strip_prefix(':') {
+        Some(port) => Ok(Addr::Port(port.parse()?)),
+        None => Ok(Addr::SocketAddr(str_to_socket_addr(string, default_port)?)),
+    }
+}
+
 /// Decode a `str` and convert it to a `crate::Addr` from a `u8` slice at a specific `offset`.
 /// Increase the `offset` by the size of the `str`.
 /// If the `str` is empty then it return `None`.
@@ -108,15 +117,10 @@ fn decode_socket_addr(
 fn decode_addr(buf: &[u8], offset: &mut usize, default_port: u16) -> DecodeResult<Option<Addr>> {
     let string = decode_str(buf, offset)?;
     if string.is_empty() {
-        return Ok(None);
-    }
-
-    match string.find(':') {
-        Some(i) if i == 0 => Ok(Some(Addr::Port(string[i..].parse()?))),
-        _ => Ok(Some(Addr::SocketAddr(str_to_socket_addr(
-            string,
-            default_port,
-        )?))),
+        Ok(None)
+    } else {
+        let addr = str_to_addr(string, default_port)?;
+        Ok(Some(addr))
     }
 }
 
