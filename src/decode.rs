@@ -55,24 +55,27 @@ fn decode_str<'a>(buf: &'a [u8], offset: &mut usize) -> DecodeResult<&'a str> {
     Ok(str::from_utf8(bytes)?)
 }
 
+/// Convert a `str` to a `std::net::IpAddr`.
+fn str_to_ip_addr(string: &str) -> DecodeResult<IpAddr> {
+    // Check if the addr is IPv6
+    if let Some(string) = string.strip_prefix('[') {
+        if let Some(string) = string.strip_suffix(']') {
+            let ipv6_addr = string.parse::<Ipv6Addr>()?;
+            Ok(IpAddr::V6(ipv6_addr))
+        } else {
+            Err(DecodeError::AddrParseIpv6ClosingBracket)
+        }
+    } else {
+        let ipv4_addr = string.parse::<Ipv4Addr>()?;
+        Ok(IpAddr::V4(ipv4_addr))
+    }
+}
+
 /// Decode a 'str' and convert it to a `std::net::IpAddr` from a `u8` slice at s specific `offset`.
 /// Increase the `offset` by the size of the `str`.
 fn decode_ip_addr(buf: &[u8], offset: &mut usize) -> DecodeResult<IpAddr> {
     let string = decode_str(buf, offset)?;
-
-    // Check if the addr is IPv6
-    let ip_addr = if let Some(string) = string.strip_prefix('[') {
-        if let Some(string) = string.strip_suffix(']') {
-            let ipv6_addr = string.parse::<Ipv6Addr>()?;
-            IpAddr::V6(ipv6_addr)
-        } else {
-            return Err(DecodeError::AddrParseIpv6ClosingBracket);
-        }
-    } else {
-        let ipv4_addr = string.parse::<Ipv4Addr>()?;
-        IpAddr::V4(ipv4_addr)
-    };
-    Ok(ip_addr)
+    str_to_ip_addr(string)
 }
 
 /// Convert a `str` to a `std::net::SocketAddr`.
@@ -171,9 +174,9 @@ fn decode_hashi(buf: &[u8], offset: &mut usize) -> DecodeResult<Vec<[u8; 32]>> {
 /// Increase the `offset` by the size of the `std::vec::Vec<std::net::IpAddr>`.
 fn decode_bootstrap_ipi(buf: &[u8], offset: &mut usize) -> DecodeResult<Vec<IpAddr>> {
     let ips = decode_vlp(buf, offset)?;
-    let mut bootstrap_ipi = Vec::new();
+    let mut bootstrap_ipi = Vec::with_capacity(ips.len());
     for ip in ips {
-        bootstrap_ipi.push(from_utf8(ip)?.parse()?);
+        bootstrap_ipi.push(str_to_ip_addr(from_utf8(ip)?)?);
     }
     Ok(bootstrap_ipi)
 }

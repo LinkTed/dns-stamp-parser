@@ -31,7 +31,7 @@ fn encode_bytes(buffer: &mut Vec<u8>, bytes: impl AsRef<[u8]>) -> EncodeResult<(
 }
 
 /// Convert a `std::net::IpAddr` to a `String`.
-fn ip_addr_string(ip_addr: &IpAddr) -> String {
+fn ip_addr_to_string(ip_addr: &IpAddr) -> String {
     let mut string = ip_addr.to_string();
     if ip_addr.is_ipv6() {
         string = format!("[{}]", string);
@@ -40,16 +40,16 @@ fn ip_addr_string(ip_addr: &IpAddr) -> String {
 }
 
 /// Convert a `std::net::SocketAddr` to a `String`.
-fn ip_addr_to_string(socket_addr: &SocketAddr, default_port: u16) -> String {
+fn socket_addr_to_string(socket_addr: &SocketAddr, default_port: u16) -> String {
     if let SocketAddr::V6(socket_addr_v6) = socket_addr {
         if socket_addr_v6.scope_id() == 0 && socket_addr.port() == default_port {
-            ip_addr_string(&socket_addr.ip())
+            ip_addr_to_string(&socket_addr.ip())
         } else {
             socket_addr.to_string()
         }
     } else {
         if socket_addr.port() == default_port {
-            ip_addr_string(&socket_addr.ip())
+            ip_addr_to_string(&socket_addr.ip())
         } else {
             socket_addr.to_string()
         }
@@ -64,7 +64,7 @@ fn encode_socket_addr(
     socket_addr: &SocketAddr,
     default_port: u16,
 ) -> EncodeResult<()> {
-    let string = ip_addr_to_string(socket_addr, default_port);
+    let string = socket_addr_to_string(socket_addr, default_port);
     encode_bytes(buffer, &string)
 }
 
@@ -89,7 +89,7 @@ fn encode_addr(buffer: &mut Vec<u8>, addr: Option<&Addr>, default_port: u16) -> 
 
 /// Encode a `std::net::IpAddr` into a `std::vec::Vec<u8>`.
 fn encode_ip_addr(buffer: &mut Vec<u8>, ip_addr: &IpAddr) -> EncodeResult<()> {
-    let string = ip_addr_string(ip_addr);
+    let string = ip_addr_to_string(ip_addr);
 
     encode_bytes(buffer, &string)
 }
@@ -139,7 +139,7 @@ fn encode_bootstrap_ipi(buffer: &mut Vec<u8>, bootstrap_ipi: &[IpAddr]) -> Encod
         buffer,
         &bootstrap_ipi
             .iter()
-            .map(|ip| ip.to_string())
+            .map(|ip| ip_addr_to_string(ip))
             .collect::<Vec<_>>(),
     )
 }
