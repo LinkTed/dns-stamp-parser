@@ -150,6 +150,11 @@ fn encode_bootstrap_ipi(buffer: &mut Vec<u8>, bootstrap_ipi: &[IpAddr]) -> Encod
     )
 }
 
+/// Encode `[u8]` slice with Base64 and prepand `"sdns://"`.
+fn encode_base64(buffer: &[u8]) -> String {
+    format!("sdns://{}", encode_config(buffer, URL_SAFE_NO_PAD))
+}
+
 impl DnsStamp {
     /// Encode a `crate::DnsStamp` to a `std::string::String`.
     pub fn encode(&self) -> EncodeResult<String> {
@@ -212,9 +217,6 @@ impl DnsStamp {
             }
         }
 
-        Ok(format!(
-            "sdns://{}",
-            encode_config(&buffer, URL_SAFE_NO_PAD)
-        ))
+        Ok(encode_base64(&buffer))
     }
 }

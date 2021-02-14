@@ -205,83 +205,88 @@ fn decode_props(buf: &[u8], offset: &mut usize) -> DecodeResult<Props> {
     Ok(Props::from_bits_truncate(props))
 }
 
+/// Decode a Base64 encoded `&str` with a prefix `"sdns://"` to `std::vec::Vec<u8>`.
+fn decode_base64(stamp: &str) -> DecodeResult<Vec<u8>> {
+    if let Some(base64) = stamp.strip_prefix("sdns://") {
+        Ok(decode_config(base64, URL_SAFE_NO_PAD)?)
+    } else {
+        Err(DecodeError::InvalidInput {
+            cause: "sdns:// prefix not present".to_string(),
+        })
+    }
+}
+
 impl DnsStamp {
     /// Decode a `crate::DnsStamp` from a `&str`.
     pub fn decode(stamp: &str) -> DecodeResult<DnsStamp> {
-        if let Some(base64) = stamp.strip_prefix("sdns://") {
-            let bytes = decode_config(base64, URL_SAFE_NO_PAD)?;
-            let mut offset: usize = 0;
-            let stamp_type = decode_type(&bytes, &mut offset)?;
+        let bytes = decode_base64(stamp)?;
+        let mut offset: usize = 0;
+        let stamp_type = decode_type(&bytes, &mut offset)?;
 
-            let dns_stamp = match stamp_type {
-                DnsStampType::DnsCrypt => {
-                    let props = decode_props(&bytes, &mut offset)?;
-                    let addr = decode_socket_addr(&bytes, &mut offset, 443)?;
-                    let pk = decode_pk(&bytes, &mut offset)?;
-                    let provider_name = decode_str(&bytes, &mut offset)?.to_string();
-                    DnsStamp::DnsCrypt(DnsCrypt {
-                        props,
-                        addr,
-                        pk,
-                        provider_name,
-                    })
-                }
-                DnsStampType::DnsOverHttps => {
-                    let props = decode_props(&bytes, &mut offset)?;
-                    let addr = decode_addr(&bytes, &mut offset, 443)?;
-                    let hashi = decode_hashi(&bytes, &mut offset)?;
-                    let hostname = decode_str(&bytes, &mut offset)?.to_string();
-                    let path = decode_str(&bytes, &mut offset)?.to_string();
-                    let bootstrap_ipi = if bytes.len() == offset {
-                        Vec::new()
-                    } else {
-                        decode_bootstrap_ipi(&bytes, &mut offset)?
-                    };
-                    DnsStamp::DnsOverHttps(DnsOverHttps {
-                        props,
-                        addr,
-                        hashi,
-                        hostname,
-                        path,
-                        bootstrap_ipi,
-                    })
-                }
-                DnsStampType::DnsOverTls => {
-                    let props = decode_props(&bytes, &mut offset)?;
-                    let addr = decode_addr(&bytes, &mut offset, 443)?;
-                    let hashi = decode_hashi(&bytes, &mut offset)?;
-                    let hostname = decode_str(&bytes, &mut offset)?.to_string();
-                    let bootstrap_ipi = if bytes.len() == offset {
-                        Vec::new()
-                    } else {
-                        decode_bootstrap_ipi(&bytes, &mut offset)?
-                    };
-                    DnsStamp::DnsOverTls(DnsOverTls {
-                        props,
-                        addr,
-                        hashi,
-                        hostname,
-                        bootstrap_ipi,
-                    })
-                }
-                DnsStampType::Plain => {
-                    let props = decode_props(&bytes, &mut offset)?;
-                    let addr = decode_ip_addr(&bytes, &mut offset)?;
-                    DnsStamp::DnsPlain(DnsPlain { props, addr })
-                }
-                DnsStampType::AnonymizedDnsCryptRelay => decode_addr(&bytes, &mut offset, 443)?
-                    .map(|addr| DnsStamp::AnonymizedDnsCryptRelay(AnonymizedDnsCryptRelay { addr }))
-                    .ok_or(DecodeError::MissingAddr)?,
-            };
-            if bytes.len() == offset {
-                Ok(dns_stamp)
-            } else {
-                Err(DecodeError::TooManyBytes)
+        let dns_stamp = match stamp_type {
+            DnsStampType::DnsCrypt => {
+                let props = decode_props(&bytes, &mut offset)?;
+                let addr = decode_socket_addr(&bytes, &mut offset, 443)?;
+                let pk = decode_pk(&bytes, &mut offset)?;
+                let provider_name = decode_str(&bytes, &mut offset)?.to_string();
+                DnsStamp::DnsCrypt(DnsCrypt {
+                    props,
+                    addr,
+                    pk,
+                    provider_name,
+                })
             }
+            DnsStampType::DnsOverHttps => {
+                let props = decode_props(&bytes, &mut offset)?;
+                let addr = decode_addr(&bytes, &mut offset, 443)?;
+                let hashi = decode_hashi(&bytes, &mut offset)?;
+                let hostname = decode_str(&bytes, &mut offset)?.to_string();
+                let path = decode_str(&bytes, &mut offset)?.to_string();
+                let bootstrap_ipi = if bytes.len() == offset {
+                    Vec::new()
+                } else {
+                    decode_bootstrap_ipi(&bytes, &mut offset)?
+                };
+                DnsStamp::DnsOverHttps(DnsOverHttps {
+                    props,
+                    addr,
+                    hashi,
+                    hostname,
+                    path,
+                    bootstrap_ipi,
+                })
+            }
+            DnsStampType::DnsOverTls => {
+                let props = decode_props(&bytes, &mut offset)?;
+                let addr = decode_addr(&bytes, &mut offset, 443)?;
+                let hashi = decode_hashi(&bytes, &mut offset)?;
+                let hostname = decode_str(&bytes, &mut offset)?.to_string();
+                let bootstrap_ipi = if bytes.len() == offset {
+                    Vec::new()
+                } else {
+                    decode_bootstrap_ipi(&bytes, &mut offset)?
+                };
+                DnsStamp::DnsOverTls(DnsOverTls {
+                    props,
+                    addr,
+                    hashi,
+                    hostname,
+                    bootstrap_ipi,
+                })
+            }
+            DnsStampType::Plain => {
+                let props = decode_props(&bytes, &mut offset)?;
+                let addr = decode_ip_addr(&bytes, &mut offset)?;
+                DnsStamp::DnsPlain(DnsPlain { props, addr })
+            }
+            DnsStampType::AnonymizedDnsCryptRelay => decode_addr(&bytes, &mut offset, 443)?
+                .map(|addr| DnsStamp::AnonymizedDnsCryptRelay(AnonymizedDnsCryptRelay { addr }))
+                .ok_or(DecodeError::MissingAddr)?,
+        };
+        if bytes.len() == offset {
+            Ok(dns_stamp)
         } else {
-            Err(DecodeError::InvalidInput {
-                cause: "sdns:// prefix not present".to_string(),
-            })
+            Err(DecodeError::TooManyBytes)
         }
     }
 }
