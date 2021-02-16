@@ -114,7 +114,11 @@ fn str_to_addr(string: &str, default_port: u16) -> DecodeResult<Addr> {
 /// If the `str` is empty then it return `None`.
 /// If the `str` contains only a port then it return `Some(crate::Addr::Port)`.
 /// If the `str` contains a address and a port then it return `Some(crate::Addr::SocketAddr)`.
-fn decode_addr(buf: &[u8], offset: &mut usize, default_port: u16) -> DecodeResult<Option<Addr>> {
+fn decode_option_addr(
+    buf: &[u8],
+    offset: &mut usize,
+    default_port: u16,
+) -> DecodeResult<Option<Addr>> {
     let string = decode_str(buf, offset)?;
     if string.is_empty() {
         Ok(None)
@@ -238,7 +242,7 @@ impl DnsStamp {
             }
             DnsStampType::DnsOverHttps => {
                 let props = decode_props(&bytes, &mut offset)?;
-                let addr = decode_addr(&bytes, &mut offset, 443)?;
+                let addr = decode_option_addr(&bytes, &mut offset, 443)?;
                 let hashi = decode_hashi(&bytes, &mut offset)?;
                 let hostname = decode_str(&bytes, &mut offset)?.to_string();
                 let path = decode_str(&bytes, &mut offset)?.to_string();
@@ -258,7 +262,7 @@ impl DnsStamp {
             }
             DnsStampType::DnsOverTls => {
                 let props = decode_props(&bytes, &mut offset)?;
-                let addr = decode_addr(&bytes, &mut offset, 443)?;
+                let addr = decode_option_addr(&bytes, &mut offset, 443)?;
                 let hashi = decode_hashi(&bytes, &mut offset)?;
                 let hostname = decode_str(&bytes, &mut offset)?.to_string();
                 let bootstrap_ipi = if bytes.len() == offset {
@@ -279,7 +283,7 @@ impl DnsStamp {
                 let addr = decode_ip_addr(&bytes, &mut offset)?;
                 DnsStamp::DnsPlain(DnsPlain { props, addr })
             }
-            DnsStampType::AnonymizedDnsCryptRelay => decode_addr(&bytes, &mut offset, 443)?
+            DnsStampType::AnonymizedDnsCryptRelay => decode_option_addr(&bytes, &mut offset, 443)?
                 .map(|addr| DnsStamp::AnonymizedDnsCryptRelay(AnonymizedDnsCryptRelay { addr }))
                 .ok_or(DecodeError::MissingAddr)?,
         };
