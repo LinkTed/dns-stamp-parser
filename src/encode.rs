@@ -214,7 +214,7 @@ impl DnsStamp {
             }
             DnsStamp::AnonymizedDnsCryptRelay(AnonymizedDnsCryptRelay { addr }) => {
                 encode_type(&mut buffer, DnsStampType::AnonymizedDnsCryptRelay);
-                encode_option_addr(&mut buffer, Some(addr), 443)?;
+                encode_socket_addr(&mut buffer, addr, 443)?;
             }
         }
 

@@ -87,7 +87,8 @@ fn str_to_socket_addr(string: &str, default_port: u16) -> DecodeResult<SocketAdd
     }
 }
 
-/// Decode a `str` and convert it to a `std::net::SocketAddr` from a `u8` slice at a specific `offset`.
+/// Decode a `str` and convert it to a `std::net::SocketAddr` from a `u8` slice at a specific
+/// `offset`.
 /// Increase the `offset` by the size of the `str`.
 /// If the `str` contains only a address then use `default_port` as a port.
 fn decode_socket_addr(
@@ -96,7 +97,6 @@ fn decode_socket_addr(
     default_port: u16,
 ) -> DecodeResult<SocketAddr> {
     let string = decode_str(buf, offset)?;
-
     str_to_socket_addr(string, default_port)
 }
 
@@ -109,7 +109,8 @@ fn str_to_addr(string: &str, default_port: u16) -> DecodeResult<Addr> {
     }
 }
 
-/// Decode a `str` and convert it to a `crate::Addr` from a `u8` slice at a specific `offset`.
+/// Decode a `str` and convert it to a `Option<crate::Addr>` from a `u8` slice at a specific
+/// `offset`.
 /// Increase the `offset` by the size of the `str`.
 /// If the `str` is empty then it return `None`.
 /// If the `str` contains only a port then it return `Some(crate::Addr::Port)`.
@@ -283,9 +284,10 @@ impl DnsStamp {
                 let addr = decode_ip_addr(&bytes, &mut offset)?;
                 DnsStamp::DnsPlain(DnsPlain { props, addr })
             }
-            DnsStampType::AnonymizedDnsCryptRelay => decode_option_addr(&bytes, &mut offset, 443)?
-                .map(|addr| DnsStamp::AnonymizedDnsCryptRelay(AnonymizedDnsCryptRelay { addr }))
-                .ok_or(DecodeError::MissingAddr)?,
+            DnsStampType::AnonymizedDnsCryptRelay => {
+                let addr = decode_socket_addr(&bytes, &mut offset, 443)?;
+                DnsStamp::AnonymizedDnsCryptRelay(AnonymizedDnsCryptRelay { addr })
+            }
         };
         if bytes.len() == offset {
             Ok(dns_stamp)
