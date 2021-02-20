@@ -207,9 +207,8 @@ fn encode_oblivious_doh_relay(
     encode_dns_over_https_data(buffer, dns_over_https)
 }
 
-/// Encode a `crate::DnsOverTls` into a `std::vec::Vec<u8>` as `crate::DnsStampType::DnsOverTls`.
-fn encode_dns_over_tls(buffer: &mut Vec<u8>, dns_over_tls: &DnsOverTls) -> EncodeResult<()> {
-    encode_type(buffer, DnsStampType::DnsOverTls);
+/// Encode a `crate::DnsOverTls` into a `std::vec::Vec<u8>`.
+fn encode_dns_over_tls_data(buffer: &mut Vec<u8>, dns_over_tls: &DnsOverTls) -> EncodeResult<()> {
     encode_props(buffer, &dns_over_tls.props);
     encode_option_addr(buffer, dns_over_tls.addr.as_ref(), 443)?;
     encode_hashi(buffer, &dns_over_tls.hashi)?;
@@ -217,6 +216,20 @@ fn encode_dns_over_tls(buffer: &mut Vec<u8>, dns_over_tls: &DnsOverTls) -> Encod
     if !dns_over_tls.bootstrap_ipi.is_empty() {
         encode_bootstrap_ipi(buffer, &dns_over_tls.bootstrap_ipi)?;
     }
+    Ok(())
+}
+
+/// Encode a `crate::DnsOverTls` into a `std::vec::Vec<u8>` as `crate::DnsStampType::DnsOverTls`.
+fn encode_dns_over_tls(buffer: &mut Vec<u8>, dns_over_tls: &DnsOverTls) -> EncodeResult<()> {
+    encode_type(buffer, DnsStampType::DnsOverTls);
+    encode_dns_over_tls_data(buffer, dns_over_tls)?;
+    Ok(())
+}
+
+/// Encode a `crate::DnsOverTls` into a `std::vec::Vec<u8>` as `crate::DnsStampType::DnsOverQuic`.
+fn encode_dns_over_quic(buffer: &mut Vec<u8>, dns_over_tls: &DnsOverTls) -> EncodeResult<()> {
+    encode_type(buffer, DnsStampType::DnsOverQuic);
+    encode_dns_over_tls_data(buffer, dns_over_tls)?;
     Ok(())
 }
 
@@ -242,6 +255,9 @@ impl DnsStamp {
                 encode_dns_over_https(&mut buffer, dns_over_https)?
             }
             DnsStamp::DnsOverTls(dns_over_tls) => encode_dns_over_tls(&mut buffer, dns_over_tls)?,
+            DnsStamp::DnsOverQuic(dns_over_quic) => {
+                encode_dns_over_quic(&mut buffer, dns_over_quic)?
+            }
             DnsStamp::AnonymizedDnsCryptRelay(anonymized_dns_crypt_relay) => {
                 encode_anonymized_dns_crypt_relay(&mut buffer, anonymized_dns_crypt_relay)?;
             }

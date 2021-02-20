@@ -73,9 +73,13 @@ pub enum DnsStampType {
     ///
     /// [DNS-over-TLS stamps]: https://dnscrypt.info/stamps-specifications#dns-over-tls-stamps
     DnsOverTls = 0x03,
-    /// See [Plain DNS stamps].
+    /// See [DNS-over-QUIC stamps].
     ///
-    /// [Plain DNS stamps]: https://dnscrypt.info/stamps-specifications#anonymized-dnscrypt-relay-stamps
+    /// [DNS-over-QUIC stamps]: https://dnscrypt.info/stamps-specifications#dns-over-quic-stamps
+    DnsOverQuic = 0x04,
+    /// See [Anonymized DNSCrypt relay stamps].
+    ///
+    /// [Anonymized DNSCrypt relay stamps]: https://dnscrypt.info/stamps-specifications#anonymized-dnscrypt-relay-stamps
     AnonymizedDnsCryptRelay = 0x81,
     /// See [Oblivious DoH relay stamps].
     ///
@@ -92,6 +96,7 @@ impl TryFrom<u8> for DnsStampType {
             0x01 => Ok(DnsStampType::DnsCrypt),
             0x02 => Ok(DnsStampType::DnsOverHttps),
             0x03 => Ok(DnsStampType::DnsOverTls),
+            0x04 => Ok(DnsStampType::DnsOverQuic),
             0x81 => Ok(DnsStampType::AnonymizedDnsCryptRelay),
             0x85 => Ok(DnsStampType::ObliviousDoHRelay),
             _ => Err(io::Error::new(
@@ -123,6 +128,10 @@ pub enum DnsStamp {
     ///
     /// [DNS-over-TLS stamps]: https://dnscrypt.info/stamps-specifications#dns-over-tls-stamps
     DnsOverTls(DnsOverTls),
+    /// See [DNS-over-QUIC stamps].
+    ///
+    /// [DNS-over-QUIC stamps]: https://dnscrypt.info/stamps-specifications#dns-over-quic-stamps
+    DnsOverQuic(DnsOverTls),
     /// See [Plain DNS stamps].
     ///
     /// [Plain DNS stamps]: https://dnscrypt.info/stamps-specifications#anonymized-dnscrypt-relay-stamps

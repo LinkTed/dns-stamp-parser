@@ -319,6 +319,9 @@ impl DnsStamp {
             DnsStampType::DnsOverTls => {
                 DnsStamp::DnsOverTls(decode_dns_over_tls(&bytes, &mut offset)?)
             }
+            DnsStampType::DnsOverQuic => {
+                DnsStamp::DnsOverQuic(decode_dns_over_tls(&bytes, &mut offset)?)
+            }
             DnsStampType::AnonymizedDnsCryptRelay => DnsStamp::AnonymizedDnsCryptRelay(
                 decode_anonymized_dns_crypt_relay(&bytes, &mut offset)?,
             ),
