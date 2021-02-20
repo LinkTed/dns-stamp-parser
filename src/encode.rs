@@ -156,65 +156,97 @@ fn encode_base64(buffer: &[u8]) -> String {
     format!("sdns://{}", encode_config(buffer, URL_SAFE_NO_PAD))
 }
 
+/// Encode a `crate::DnsPlain` into a `std::vec::Vec<u8>` as `crate::DnsStampType::Plain`.
+fn encode_dns_plain(buffer: &mut Vec<u8>, dns_plain: &DnsPlain) -> EncodeResult<()> {
+    encode_type(buffer, DnsStampType::Plain);
+    encode_props(buffer, &dns_plain.props);
+    encode_ip_addr(buffer, &dns_plain.addr)?;
+    Ok(())
+}
+
+/// Encode a `crate::DnsCrypt` into a `std::vec::Vec<u8>` as `crate::DnsStampType::DnsCrypt`.
+fn encode_dns_crypt(buffer: &mut Vec<u8>, dns_crypt: &DnsCrypt) -> EncodeResult<()> {
+    encode_type(buffer, DnsStampType::DnsCrypt);
+    encode_props(buffer, &dns_crypt.props);
+    encode_socket_addr(buffer, &dns_crypt.addr, 443)?;
+    encode_pk(buffer, &dns_crypt.pk)?;
+    encode_bytes(buffer, &dns_crypt.provider_name)?;
+    Ok(())
+}
+
+/// Encode a `crate::DnsCrypt` into a `std::vec::Vec<u8>`.
+fn encode_dns_over_https_data(
+    buffer: &mut Vec<u8>,
+    dns_over_https: &DnsOverHttps,
+) -> EncodeResult<()> {
+    encode_props(buffer, &dns_over_https.props);
+    encode_option_addr(buffer, dns_over_https.addr.as_ref(), 443)?;
+    encode_hashi(buffer, &dns_over_https.hashi)?;
+    encode_bytes(buffer, &dns_over_https.hostname)?;
+    encode_bytes(buffer, &dns_over_https.path)?;
+    if !dns_over_https.bootstrap_ipi.is_empty() {
+        encode_bootstrap_ipi(buffer, &dns_over_https.bootstrap_ipi)?;
+    }
+    Ok(())
+}
+
+/// Encode a `crate::DnsOverHttps` into a `std::vec::Vec<u8>`
+/// as `crate::DnsStampType::DnsOverHttps`.
+fn encode_dns_over_https(buffer: &mut Vec<u8>, dns_over_https: &DnsOverHttps) -> EncodeResult<()> {
+    encode_type(buffer, DnsStampType::DnsOverHttps);
+    encode_dns_over_https_data(buffer, dns_over_https)
+}
+
+/// Encode a `crate::DnsOverHttps` into a `std::vec::Vec<u8>`
+/// as `crate::DnsStampType::ObliviousDoHRelay`.
+fn encode_oblivious_doh_relay(
+    buffer: &mut Vec<u8>,
+    dns_over_https: &DnsOverHttps,
+) -> EncodeResult<()> {
+    encode_type(buffer, DnsStampType::ObliviousDoHRelay);
+    encode_dns_over_https_data(buffer, dns_over_https)
+}
+
+/// Encode a `crate::DnsOverTls` into a `std::vec::Vec<u8>` as `crate::DnsStampType::DnsOverTls`.
+fn encode_dns_over_tls(buffer: &mut Vec<u8>, dns_over_tls: &DnsOverTls) -> EncodeResult<()> {
+    encode_type(buffer, DnsStampType::DnsOverTls);
+    encode_props(buffer, &dns_over_tls.props);
+    encode_option_addr(buffer, dns_over_tls.addr.as_ref(), 443)?;
+    encode_hashi(buffer, &dns_over_tls.hashi)?;
+    encode_bytes(buffer, &dns_over_tls.hostname)?;
+    if !dns_over_tls.bootstrap_ipi.is_empty() {
+        encode_bootstrap_ipi(buffer, &dns_over_tls.bootstrap_ipi)?;
+    }
+    Ok(())
+}
+
+/// Encode a `crate::AnonymizedDnsCryptRelay` into a `std::vec::Vec<u8>`
+/// as `crate::DnsStampType::AnonymizedDnsCryptRelay`.
+fn encode_anonymized_dns_crypt_relay(
+    buffer: &mut Vec<u8>,
+    anonymized_dns_crypt_relay: &AnonymizedDnsCryptRelay,
+) -> EncodeResult<()> {
+    encode_type(buffer, DnsStampType::AnonymizedDnsCryptRelay);
+    encode_socket_addr(buffer, &anonymized_dns_crypt_relay.addr, 443)?;
+    Ok(())
+}
+
 impl DnsStamp {
     /// Encode a `crate::DnsStamp` to a `std::string::String`.
     pub fn encode(&self) -> EncodeResult<String> {
         let mut buffer = Vec::new();
         match self {
-            DnsStamp::DnsCrypt(DnsCrypt {
-                props,
-                addr,
-                pk,
-                provider_name,
-            }) => {
-                encode_type(&mut buffer, DnsStampType::DnsCrypt);
-                encode_props(&mut buffer, props);
-                encode_socket_addr(&mut buffer, addr, 443)?;
-                encode_pk(&mut buffer, pk)?;
-                encode_bytes(&mut buffer, provider_name)?;
+            DnsStamp::DnsPlain(dns_plain) => encode_dns_plain(&mut buffer, dns_plain)?,
+            DnsStamp::DnsCrypt(dns_crypt) => encode_dns_crypt(&mut buffer, dns_crypt)?,
+            DnsStamp::DnsOverHttps(dns_over_https) => {
+                encode_dns_over_https(&mut buffer, dns_over_https)?
             }
-            DnsStamp::DnsOverHttps(DnsOverHttps {
-                props,
-                addr,
-                hashi,
-                hostname,
-                path,
-                bootstrap_ipi,
-            }) => {
-                encode_type(&mut buffer, DnsStampType::DnsOverHttps);
-                encode_props(&mut buffer, props);
-                encode_option_addr(&mut buffer, addr.as_ref(), 443)?;
-                encode_hashi(&mut buffer, hashi)?;
-                encode_bytes(&mut buffer, hostname)?;
-                encode_bytes(&mut buffer, path)?;
-                if !bootstrap_ipi.is_empty() {
-                    encode_bootstrap_ipi(&mut buffer, bootstrap_ipi)?;
-                }
+            DnsStamp::DnsOverTls(dns_over_tls) => encode_dns_over_tls(&mut buffer, dns_over_tls)?,
+            DnsStamp::AnonymizedDnsCryptRelay(anonymized_dns_crypt_relay) => {
+                encode_anonymized_dns_crypt_relay(&mut buffer, anonymized_dns_crypt_relay)?;
             }
-            DnsStamp::DnsOverTls(DnsOverTls {
-                props,
-                addr,
-                hashi,
-                hostname,
-                bootstrap_ipi,
-            }) => {
-                encode_type(&mut buffer, DnsStampType::DnsOverTls);
-                encode_props(&mut buffer, props);
-                encode_option_addr(&mut buffer, addr.as_ref(), 443)?;
-                encode_hashi(&mut buffer, hashi)?;
-                encode_bytes(&mut buffer, hostname)?;
-                if !bootstrap_ipi.is_empty() {
-                    encode_bootstrap_ipi(&mut buffer, bootstrap_ipi)?;
-                }
-            }
-            DnsStamp::DnsPlain(DnsPlain { props, addr }) => {
-                encode_type(&mut buffer, DnsStampType::Plain);
-                encode_props(&mut buffer, props);
-                encode_ip_addr(&mut buffer, addr)?;
-            }
-            DnsStamp::AnonymizedDnsCryptRelay(AnonymizedDnsCryptRelay { addr }) => {
-                encode_type(&mut buffer, DnsStampType::AnonymizedDnsCryptRelay);
-                encode_socket_addr(&mut buffer, addr, 443)?;
+            DnsStamp::ObliviousDoHRelay(oblivious_doh_relay) => {
+                encode_oblivious_doh_relay(&mut buffer, oblivious_doh_relay)?;
             }
         }
 

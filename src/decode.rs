@@ -221,6 +221,88 @@ fn decode_base64(stamp: &str) -> DecodeResult<Vec<u8>> {
     }
 }
 
+/// Decode a `crate::DnsPlain` from a `u8` slice at s specific `offset`.
+/// Increase the `offset`
+fn decode_dns_plain(buf: &[u8], offset: &mut usize) -> DecodeResult<DnsPlain> {
+    let props = decode_props(buf, offset)?;
+    let addr = decode_ip_addr(buf, offset)?;
+    let dns_plain = DnsPlain { props, addr };
+    Ok(dns_plain)
+}
+
+/// Decode a `crate::DnsCrypt` from a `u8` slice at s specific `offset`.
+/// Increase the `offset`
+fn decode_dns_crypt(buf: &[u8], offset: &mut usize) -> DecodeResult<DnsCrypt> {
+    let props = decode_props(buf, offset)?;
+    let addr = decode_socket_addr(buf, offset, 443)?;
+    let pk = decode_pk(buf, offset)?;
+    let provider_name = decode_str(buf, offset)?.to_string();
+    let dns_crypt = DnsCrypt {
+        props,
+        addr,
+        pk,
+        provider_name,
+    };
+    Ok(dns_crypt)
+}
+
+/// Decode a `crate::DnsOverHttps` from a `u8` slice at s specific `offset`.
+/// Increase the `offset`
+fn decode_dns_over_https(buf: &[u8], offset: &mut usize) -> DecodeResult<DnsOverHttps> {
+    let props = decode_props(buf, offset)?;
+    let addr = decode_option_addr(buf, offset, 443)?;
+    let hashi = decode_hashi(buf, offset)?;
+    let hostname = decode_str(buf, offset)?.to_string();
+    let path = decode_str(buf, offset)?.to_string();
+    let bootstrap_ipi = if buf.len() == *offset {
+        Vec::new()
+    } else {
+        decode_bootstrap_ipi(buf, offset)?
+    };
+    let dns_over_https = DnsOverHttps {
+        props,
+        addr,
+        hashi,
+        hostname,
+        path,
+        bootstrap_ipi,
+    };
+    Ok(dns_over_https)
+}
+
+/// Decode a `crate::DnsOverTls` from a `u8` slice at s specific `offset`.
+/// Increase the `offset`
+fn decode_dns_over_tls(buf: &[u8], offset: &mut usize) -> DecodeResult<DnsOverTls> {
+    let props = decode_props(buf, offset)?;
+    let addr = decode_option_addr(buf, offset, 443)?;
+    let hashi = decode_hashi(buf, offset)?;
+    let hostname = decode_str(buf, offset)?.to_string();
+    let bootstrap_ipi = if buf.len() == *offset {
+        Vec::new()
+    } else {
+        decode_bootstrap_ipi(buf, offset)?
+    };
+    let dns_over_tls = DnsOverTls {
+        props,
+        addr,
+        hashi,
+        hostname,
+        bootstrap_ipi,
+    };
+    Ok(dns_over_tls)
+}
+
+/// Decode a `crate::AnonymizedDnsCryptRelay` from a `u8` slice at s specific `offset`.
+/// Increase the `offset`
+fn decode_anonymized_dns_crypt_relay(
+    buf: &[u8],
+    offset: &mut usize,
+) -> DecodeResult<AnonymizedDnsCryptRelay> {
+    let addr = decode_socket_addr(buf, offset, 443)?;
+    let anonymized_dns_crypt_relay = AnonymizedDnsCryptRelay { addr };
+    Ok(anonymized_dns_crypt_relay)
+}
+
 impl DnsStamp {
     /// Decode a `crate::DnsStamp` from a `&str`.
     pub fn decode(stamp: &str) -> DecodeResult<DnsStamp> {
@@ -229,64 +311,19 @@ impl DnsStamp {
         let stamp_type = decode_type(&bytes, &mut offset)?;
 
         let dns_stamp = match stamp_type {
-            DnsStampType::DnsCrypt => {
-                let props = decode_props(&bytes, &mut offset)?;
-                let addr = decode_socket_addr(&bytes, &mut offset, 443)?;
-                let pk = decode_pk(&bytes, &mut offset)?;
-                let provider_name = decode_str(&bytes, &mut offset)?.to_string();
-                DnsStamp::DnsCrypt(DnsCrypt {
-                    props,
-                    addr,
-                    pk,
-                    provider_name,
-                })
-            }
+            DnsStampType::Plain => DnsStamp::DnsPlain(decode_dns_plain(&bytes, &mut offset)?),
+            DnsStampType::DnsCrypt => DnsStamp::DnsCrypt(decode_dns_crypt(&bytes, &mut offset)?),
             DnsStampType::DnsOverHttps => {
-                let props = decode_props(&bytes, &mut offset)?;
-                let addr = decode_option_addr(&bytes, &mut offset, 443)?;
-                let hashi = decode_hashi(&bytes, &mut offset)?;
-                let hostname = decode_str(&bytes, &mut offset)?.to_string();
-                let path = decode_str(&bytes, &mut offset)?.to_string();
-                let bootstrap_ipi = if bytes.len() == offset {
-                    Vec::new()
-                } else {
-                    decode_bootstrap_ipi(&bytes, &mut offset)?
-                };
-                DnsStamp::DnsOverHttps(DnsOverHttps {
-                    props,
-                    addr,
-                    hashi,
-                    hostname,
-                    path,
-                    bootstrap_ipi,
-                })
+                DnsStamp::DnsOverHttps(decode_dns_over_https(&bytes, &mut offset)?)
             }
             DnsStampType::DnsOverTls => {
-                let props = decode_props(&bytes, &mut offset)?;
-                let addr = decode_option_addr(&bytes, &mut offset, 443)?;
-                let hashi = decode_hashi(&bytes, &mut offset)?;
-                let hostname = decode_str(&bytes, &mut offset)?.to_string();
-                let bootstrap_ipi = if bytes.len() == offset {
-                    Vec::new()
-                } else {
-                    decode_bootstrap_ipi(&bytes, &mut offset)?
-                };
-                DnsStamp::DnsOverTls(DnsOverTls {
-                    props,
-                    addr,
-                    hashi,
-                    hostname,
-                    bootstrap_ipi,
-                })
+                DnsStamp::DnsOverTls(decode_dns_over_tls(&bytes, &mut offset)?)
             }
-            DnsStampType::Plain => {
-                let props = decode_props(&bytes, &mut offset)?;
-                let addr = decode_ip_addr(&bytes, &mut offset)?;
-                DnsStamp::DnsPlain(DnsPlain { props, addr })
-            }
-            DnsStampType::AnonymizedDnsCryptRelay => {
-                let addr = decode_socket_addr(&bytes, &mut offset, 443)?;
-                DnsStamp::AnonymizedDnsCryptRelay(AnonymizedDnsCryptRelay { addr })
+            DnsStampType::AnonymizedDnsCryptRelay => DnsStamp::AnonymizedDnsCryptRelay(
+                decode_anonymized_dns_crypt_relay(&bytes, &mut offset)?,
+            ),
+            DnsStampType::ObliviousDoHRelay => {
+                DnsStamp::ObliviousDoHRelay(decode_dns_over_https(&bytes, &mut offset)?)
             }
         };
         if bytes.len() == offset {

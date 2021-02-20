@@ -57,6 +57,10 @@ pub enum Addr {
 #[repr(u8)]
 #[derive(Debug, Copy, Clone)]
 pub enum DnsStampType {
+    /// See [Plain DNS stamps].
+    ///
+    /// [Plain DNS stamps]: https://dnscrypt.info/stamps-specifications#plain-dns-stamps
+    Plain = 0x00,
     /// See [DNSCrypt stamps].
     ///
     /// [DNSCrypt stamps]: https://dnscrypt.info/stamps-specifications#dnscrypt-stamps
@@ -71,12 +75,12 @@ pub enum DnsStampType {
     DnsOverTls = 0x03,
     /// See [Plain DNS stamps].
     ///
-    /// [Plain DNS stamps]: https://dnscrypt.info/stamps-specifications#plain-dns-stamps
-    Plain = 0x00,
-    /// See [Plain DNS stamps].
-    ///
     /// [Plain DNS stamps]: https://dnscrypt.info/stamps-specifications#anonymized-dnscrypt-relay-stamps
     AnonymizedDnsCryptRelay = 0x81,
+    /// See [Oblivious DoH relay stamps].
+    ///
+    /// [Oblivious DoH relay stamps]: https://dnscrypt.info/stamps-specifications#oblivious-doh-relay-stamps
+    ObliviousDoHRelay = 0x85,
 }
 
 impl TryFrom<u8> for DnsStampType {
@@ -84,11 +88,12 @@ impl TryFrom<u8> for DnsStampType {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
+            0x00 => Ok(DnsStampType::Plain),
             0x01 => Ok(DnsStampType::DnsCrypt),
             0x02 => Ok(DnsStampType::DnsOverHttps),
             0x03 => Ok(DnsStampType::DnsOverTls),
-            0x00 => Ok(DnsStampType::Plain),
             0x81 => Ok(DnsStampType::AnonymizedDnsCryptRelay),
+            0x85 => Ok(DnsStampType::ObliviousDoHRelay),
             _ => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "dns stamp type not found",
@@ -102,6 +107,10 @@ impl TryFrom<u8> for DnsStampType {
 /// [DNS Stamp]: https://dnscrypt.info/stamps-specifications/
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DnsStamp {
+    /// See [Plain DNS stamps].
+    ///
+    /// [Plain DNS stamps]: https://dnscrypt.info/stamps-specifications#plain-dns-stamps
+    DnsPlain(DnsPlain),
     /// See [DNSCrypt stamps].
     ///
     /// [DNSCrypt stamps]: https://dnscrypt.info/stamps-specifications#dnscrypt-stamps
@@ -116,12 +125,12 @@ pub enum DnsStamp {
     DnsOverTls(DnsOverTls),
     /// See [Plain DNS stamps].
     ///
-    /// [Plain DNS stamps]: https://dnscrypt.info/stamps-specifications#plain-dns-stamps
-    DnsPlain(DnsPlain),
-    /// See [Plain DNS stamps].
-    ///
     /// [Plain DNS stamps]: https://dnscrypt.info/stamps-specifications#anonymized-dnscrypt-relay-stamps
     AnonymizedDnsCryptRelay(AnonymizedDnsCryptRelay),
+    /// See [Oblivious DoH relay stamps].
+    ///
+    /// [Oblivious DoH relay stamps]: https://dnscrypt.info/stamps-specifications#oblivious-doh-relay-stamps
+    ObliviousDoHRelay(DnsOverHttps),
 }
 
 /// Dnscrypt configuration parsed from dnsstamp
