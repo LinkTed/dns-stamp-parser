@@ -1,6 +1,6 @@
 [package]
 name = "dns-stamp-parser"
-version = "2.0.1"
+version = "3.0.0"
 authors = ["LinkTed <link.ted@mailbox.org>", "Evan Cameron <cameron.evan@gmail.com>"]
 license = "BSD-3-Clause"
 edition = "2018"

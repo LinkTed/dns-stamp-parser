@@ -13,7 +13,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-dns-stamp-parser = "~2.0"
+dns-stamp-parser = "~3.0.0"
 ```
 
 ## Example
