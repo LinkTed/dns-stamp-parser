@@ -161,7 +161,7 @@ fn decode_vlp<'a>(buf: &'a [u8], offset: &mut usize) -> DecodeResult<Vec<&'a [u8
 
 /// Decode an array of `u8` of the size of `32` from a `u8` slice
 fn slice_to_32_bytes(array: &[u8]) -> DecodeResult<[u8; 32]> {
-    Ok(array.try_into().map_err(|_| DecodeError::Len)?)
+    array.try_into().map_err(|_| DecodeError::Len)
 }
 
 /// Decode a `std::vec::Vec<[u8;32]>` from a `u8` slice at s specific `offset`.

@@ -41,17 +41,20 @@ fn ip_addr_to_string(ip_addr: &IpAddr) -> String {
 
 /// Convert a `std::net::SocketAddr` to a `String`.
 fn socket_addr_to_string(socket_addr: &SocketAddr, default_port: u16) -> String {
-    if let SocketAddr::V6(socket_addr_v6) = socket_addr {
-        if socket_addr_v6.scope_id() == 0 && socket_addr.port() == default_port {
-            ip_addr_to_string(&socket_addr.ip())
-        } else {
-            socket_addr.to_string()
+    match socket_addr {
+        SocketAddr::V6(socket_addr_v6) => {
+            if socket_addr_v6.scope_id() == 0 && socket_addr.port() == default_port {
+                ip_addr_to_string(&socket_addr.ip())
+            } else {
+                socket_addr.to_string()
+            }
         }
-    } else {
-        if socket_addr.port() == default_port {
-            ip_addr_to_string(&socket_addr.ip())
-        } else {
-            socket_addr.to_string()
+        SocketAddr::V4(socket_addr_v4) => {
+            if socket_addr_v4.port() == default_port {
+                ip_addr_to_string(&socket_addr.ip())
+            } else {
+                socket_addr_v4.to_string()
+            }
         }
     }
 }
