@@ -1,7 +1,7 @@
 //! This module contains all encode functions for the crate.
 use crate::{
     Addr, AnonymizedDnsCryptRelay, DnsCrypt, DnsOverHttps, DnsOverTls, DnsPlain, DnsStamp,
-    DnsStampType, EncodeError, EncodeResult, Props,
+    DnsStampType, EncodeError, EncodeResult, ObliviousDoHTarget, Props,
 };
 use base64::{encode_config, URL_SAFE_NO_PAD};
 use std::net::{IpAddr, SocketAddr};
@@ -233,6 +233,19 @@ fn encode_dns_over_quic(buffer: &mut Vec<u8>, dns_over_tls: &DnsOverTls) -> Enco
     Ok(())
 }
 
+/// Encode a `crate::ObliviousDoHTarget` into a `std::vec::Vec<u8>`
+/// as `crate::DnsStampType::ObliviousDoHTarget`.
+fn encode_oblivious_doh_target(
+    buffer: &mut Vec<u8>,
+    oblivious_doh_target: &ObliviousDoHTarget,
+) -> EncodeResult<()> {
+    encode_type(buffer, DnsStampType::ObliviousDoHTarget);
+    encode_props(buffer, &oblivious_doh_target.props);
+    encode_bytes(buffer, &oblivious_doh_target.hostname)?;
+    encode_bytes(buffer, &oblivious_doh_target.path)?;
+    Ok(())
+}
+
 /// Encode a `crate::AnonymizedDnsCryptRelay` into a `std::vec::Vec<u8>`
 /// as `crate::DnsStampType::AnonymizedDnsCryptRelay`.
 fn encode_anonymized_dns_crypt_relay(
@@ -257,6 +270,9 @@ impl DnsStamp {
             DnsStamp::DnsOverTls(dns_over_tls) => encode_dns_over_tls(&mut buffer, dns_over_tls)?,
             DnsStamp::DnsOverQuic(dns_over_quic) => {
                 encode_dns_over_quic(&mut buffer, dns_over_quic)?
+            }
+            DnsStamp::ObliviousDoHTarget(oblivious_doh_target) => {
+                encode_oblivious_doh_target(&mut buffer, oblivious_doh_target)?
             }
             DnsStamp::AnonymizedDnsCryptRelay(anonymized_dns_crypt_relay) => {
                 encode_anonymized_dns_crypt_relay(&mut buffer, anonymized_dns_crypt_relay)?;

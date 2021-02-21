@@ -77,6 +77,10 @@ pub enum DnsStampType {
     ///
     /// [DNS-over-QUIC stamps]: https://dnscrypt.info/stamps-specifications#dns-over-quic-stamps
     DnsOverQuic = 0x04,
+    /// See [Oblivious DoH target stamps].
+    ///
+    /// [Oblivious DoH target stamps]: https://dnscrypt.info/stamps-specifications#oblivious-doh-target-stamps
+    ObliviousDoHTarget = 0x05,
     /// See [Anonymized DNSCrypt relay stamps].
     ///
     /// [Anonymized DNSCrypt relay stamps]: https://dnscrypt.info/stamps-specifications#anonymized-dnscrypt-relay-stamps
@@ -97,6 +101,7 @@ impl TryFrom<u8> for DnsStampType {
             0x02 => Ok(DnsStampType::DnsOverHttps),
             0x03 => Ok(DnsStampType::DnsOverTls),
             0x04 => Ok(DnsStampType::DnsOverQuic),
+            0x05 => Ok(DnsStampType::ObliviousDoHTarget),
             0x81 => Ok(DnsStampType::AnonymizedDnsCryptRelay),
             0x85 => Ok(DnsStampType::ObliviousDoHRelay),
             _ => Err(io::Error::new(
@@ -132,6 +137,10 @@ pub enum DnsStamp {
     ///
     /// [DNS-over-QUIC stamps]: https://dnscrypt.info/stamps-specifications#dns-over-quic-stamps
     DnsOverQuic(DnsOverTls),
+    /// See [Oblivious DoH target stamps].
+    ///
+    /// [Oblivious DoH target stamps]: https://dnscrypt.info/stamps-specifications#oblivious-doh-target-stamps
+    ObliviousDoHTarget(ObliviousDoHTarget),
     /// See [Plain DNS stamps].
     ///
     /// [Plain DNS stamps]: https://dnscrypt.info/stamps-specifications#anonymized-dnscrypt-relay-stamps
@@ -181,7 +190,7 @@ pub struct DnsOverHttps {
     pub bootstrap_ipi: Vec<IpAddr>,
 }
 
-/// Dns over TLS configuration
+/// DNS over TLS configuration
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DnsOverTls {
     /// server properties
@@ -202,6 +211,19 @@ pub struct DnsOverTls {
     /// bootstrap_ipi are IP addresses of recommended resolvers accessible over standard DNS
     /// in order to resolve hostname. This is optional, and clients can ignore this information.
     pub bootstrap_ipi: Vec<IpAddr>,
+}
+
+/// Oblivious DoH target stamps
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ObliviousDoHTarget {
+    /// server properties
+    pub props: Props,
+    /// hostname is the server host name which, for relays, will also be used as a SNI name.
+    /// If the host name contains characters outside the URL-permitted range, these characters
+    /// should be sent as-is, without any extra encoding (neither URL-encoded nor punycode).
+    pub hostname: String,
+    /// path is the absolute URI path, such as /dns-query.
+    pub path: String,
 }
 
 /// Plain dns configuration parsed from a dnsstamp

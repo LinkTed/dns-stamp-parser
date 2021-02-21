@@ -1,7 +1,7 @@
 //! This module contains all decode functions for this crate.
 use crate::{
     Addr, AnonymizedDnsCryptRelay, DecodeError, DecodeResult, DnsCrypt, DnsOverHttps, DnsOverTls,
-    DnsPlain, DnsStamp, DnsStampType, Props,
+    DnsPlain, DnsStamp, DnsStampType, ObliviousDoHTarget, Props,
 };
 use base64::{decode_config, URL_SAFE_NO_PAD};
 use std::{
@@ -292,6 +292,20 @@ fn decode_dns_over_tls(buf: &[u8], offset: &mut usize) -> DecodeResult<DnsOverTl
     Ok(dns_over_tls)
 }
 
+/// Decode a `crate::ObliviousDoHTarget` from a `u8` slice at s specific `offset`.
+/// Increase the `offset`
+fn decode_oblivious_doh_target(buf: &[u8], offset: &mut usize) -> DecodeResult<ObliviousDoHTarget> {
+    let props = decode_props(buf, offset)?;
+    let hostname = decode_str(buf, offset)?.to_string();
+    let path = decode_str(buf, offset)?.to_string();
+    let oblivious_doh_target = ObliviousDoHTarget {
+        props,
+        hostname,
+        path,
+    };
+    Ok(oblivious_doh_target)
+}
+
 /// Decode a `crate::AnonymizedDnsCryptRelay` from a `u8` slice at s specific `offset`.
 /// Increase the `offset`
 fn decode_anonymized_dns_crypt_relay(
@@ -321,6 +335,9 @@ impl DnsStamp {
             }
             DnsStampType::DnsOverQuic => {
                 DnsStamp::DnsOverQuic(decode_dns_over_tls(&bytes, &mut offset)?)
+            }
+            DnsStampType::ObliviousDoHTarget => {
+                DnsStamp::ObliviousDoHTarget(decode_oblivious_doh_target(&bytes, &mut offset)?)
             }
             DnsStampType::AnonymizedDnsCryptRelay => DnsStamp::AnonymizedDnsCryptRelay(
                 decode_anonymized_dns_crypt_relay(&bytes, &mut offset)?,
