@@ -31,7 +31,7 @@ fn encode_bytes(buffer: &mut Vec<u8>, bytes: impl AsRef<[u8]>) -> EncodeResult<(
 }
 
 /// Convert a `std::net::IpAddr` to a `String`.
-fn ip_addr_to_string(ip_addr: &IpAddr) -> String {
+fn ip_addr_to_string(ip_addr: IpAddr) -> String {
     let mut string = ip_addr.to_string();
     if ip_addr.is_ipv6() {
         string = format!("[{}]", string);
@@ -40,18 +40,18 @@ fn ip_addr_to_string(ip_addr: &IpAddr) -> String {
 }
 
 /// Convert a `std::net::SocketAddr` to a `String`.
-fn socket_addr_to_string(socket_addr: &SocketAddr, default_port: u16) -> String {
+fn socket_addr_to_string(socket_addr: SocketAddr, default_port: u16) -> String {
     match socket_addr {
         SocketAddr::V6(socket_addr_v6) => {
             if socket_addr_v6.scope_id() == 0 && socket_addr.port() == default_port {
-                ip_addr_to_string(&socket_addr.ip())
+                ip_addr_to_string(socket_addr.ip())
             } else {
                 socket_addr.to_string()
             }
         }
         SocketAddr::V4(socket_addr_v4) => {
             if socket_addr_v4.port() == default_port {
-                ip_addr_to_string(&socket_addr.ip())
+                ip_addr_to_string(socket_addr.ip())
             } else {
                 socket_addr_v4.to_string()
             }
@@ -64,7 +64,7 @@ fn socket_addr_to_string(socket_addr: &SocketAddr, default_port: u16) -> String 
 /// then encode only the `std::net::IpAddr`.
 fn encode_socket_addr(
     buffer: &mut Vec<u8>,
-    socket_addr: &SocketAddr,
+    socket_addr: SocketAddr,
     default_port: u16,
 ) -> EncodeResult<()> {
     let string = socket_addr_to_string(socket_addr, default_port);
@@ -72,7 +72,7 @@ fn encode_socket_addr(
 }
 
 /// Convert a `crate::Addr` to a `String`.
-fn addr_to_string(addr: &Addr, default_port: u16) -> String {
+fn addr_to_string(addr: Addr, default_port: u16) -> String {
     match addr {
         Addr::SocketAddr(socket_addr) => socket_addr_to_string(socket_addr, default_port),
         Addr::Port(port) => format!(":{}", port),
@@ -80,7 +80,7 @@ fn addr_to_string(addr: &Addr, default_port: u16) -> String {
 }
 
 /// Convert a `std::option::Option<crate::Addr>` to a `String`.
-fn option_addr_to_string(addr: Option<&Addr>, default_port: u16) -> String {
+fn option_addr_to_string(addr: Option<Addr>, default_port: u16) -> String {
     match addr {
         Some(addr) => addr_to_string(addr, default_port),
         None => "".to_string(),
@@ -91,7 +91,7 @@ fn option_addr_to_string(addr: Option<&Addr>, default_port: u16) -> String {
 /// If the `addr` is `None` then encode only the `default_port`.
 fn encode_option_addr(
     buffer: &mut Vec<u8>,
-    addr: Option<&Addr>,
+    addr: Option<Addr>,
     default_port: u16,
 ) -> EncodeResult<()> {
     let string = option_addr_to_string(addr, default_port);
@@ -99,7 +99,7 @@ fn encode_option_addr(
 }
 
 /// Encode a `std::net::IpAddr` into a `std::vec::Vec<u8>`.
-fn encode_ip_addr(buffer: &mut Vec<u8>, ip_addr: &IpAddr) -> EncodeResult<()> {
+fn encode_ip_addr(buffer: &mut Vec<u8>, ip_addr: IpAddr) -> EncodeResult<()> {
     let string = ip_addr_to_string(ip_addr);
     encode_bytes(buffer, &string)
 }
@@ -149,7 +149,8 @@ fn encode_bootstrap_ipi(buffer: &mut Vec<u8>, bootstrap_ipi: &[IpAddr]) -> Encod
         buffer,
         &bootstrap_ipi
             .iter()
-            .map(|ip| ip_addr_to_string(ip))
+            .cloned()
+            .map(ip_addr_to_string)
             .collect::<Vec<_>>(),
     )
 }
@@ -163,7 +164,7 @@ fn encode_base64(buffer: &[u8]) -> String {
 fn encode_dns_plain(buffer: &mut Vec<u8>, dns_plain: &DnsPlain) -> EncodeResult<()> {
     encode_type(buffer, DnsStampType::Plain);
     encode_props(buffer, &dns_plain.props);
-    encode_ip_addr(buffer, &dns_plain.addr)?;
+    encode_ip_addr(buffer, dns_plain.addr)?;
     Ok(())
 }
 
@@ -171,7 +172,7 @@ fn encode_dns_plain(buffer: &mut Vec<u8>, dns_plain: &DnsPlain) -> EncodeResult<
 fn encode_dns_crypt(buffer: &mut Vec<u8>, dns_crypt: &DnsCrypt) -> EncodeResult<()> {
     encode_type(buffer, DnsStampType::DnsCrypt);
     encode_props(buffer, &dns_crypt.props);
-    encode_socket_addr(buffer, &dns_crypt.addr, 443)?;
+    encode_socket_addr(buffer, dns_crypt.addr, 443)?;
     encode_pk(buffer, &dns_crypt.pk)?;
     encode_bytes(buffer, &dns_crypt.provider_name)?;
     Ok(())
@@ -183,7 +184,7 @@ fn encode_dns_over_https_data(
     dns_over_https: &DnsOverHttps,
 ) -> EncodeResult<()> {
     encode_props(buffer, &dns_over_https.props);
-    encode_option_addr(buffer, dns_over_https.addr.as_ref(), 443)?;
+    encode_option_addr(buffer, dns_over_https.addr, 443)?;
     encode_hashi(buffer, &dns_over_https.hashi)?;
     encode_bytes(buffer, &dns_over_https.hostname)?;
     encode_bytes(buffer, &dns_over_https.path)?;
@@ -213,7 +214,7 @@ fn encode_oblivious_doh_relay(
 /// Encode a `crate::DnsOverTls` into a `std::vec::Vec<u8>`.
 fn encode_dns_over_tls_data(buffer: &mut Vec<u8>, dns_over_tls: &DnsOverTls) -> EncodeResult<()> {
     encode_props(buffer, &dns_over_tls.props);
-    encode_option_addr(buffer, dns_over_tls.addr.as_ref(), 443)?;
+    encode_option_addr(buffer, dns_over_tls.addr, 443)?;
     encode_hashi(buffer, &dns_over_tls.hashi)?;
     encode_bytes(buffer, &dns_over_tls.hostname)?;
     if !dns_over_tls.bootstrap_ipi.is_empty() {
@@ -256,7 +257,7 @@ fn encode_anonymized_dns_crypt_relay(
     anonymized_dns_crypt_relay: &AnonymizedDnsCryptRelay,
 ) -> EncodeResult<()> {
     encode_type(buffer, DnsStampType::AnonymizedDnsCryptRelay);
-    encode_socket_addr(buffer, &anonymized_dns_crypt_relay.addr, 443)?;
+    encode_socket_addr(buffer, anonymized_dns_crypt_relay.addr, 443)?;
     Ok(())
 }
 
