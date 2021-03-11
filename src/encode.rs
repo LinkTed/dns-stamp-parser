@@ -60,7 +60,7 @@ fn socket_addr_to_string(socket_addr: SocketAddr, default_port: u16) -> String {
 }
 
 /// Encode a `std::net::SocketAddr` into a `std::vec::Vec<u8>`.
-/// If the `socket_addr` hat the same `default_port`
+/// If the `socket_addr` has the same `default_port`
 /// then encode only the `std::net::IpAddr`.
 fn encode_socket_addr(
     buffer: &mut Vec<u8>,
