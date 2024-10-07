@@ -10,7 +10,6 @@
     non_upper_case_globals
 )]
 #![allow(clippy::cognitive_complexity)]
-#![deny(broken_intra_doc_links)]
 #![doc(test(
     no_crate_inject,
     attr(deny(warnings, rust_2018_idioms), allow(dead_code, unused_variables))
@@ -31,6 +30,7 @@ bitflags! {
     /// Represent the [`props`].
     ///
     /// [`props`]: https://dnscrypt.info/stamps-specifications#dnscrypt-stamps
+    #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct Props: u64 {
         /// If this flag is present then the server supports [DNSSEC].
         ///

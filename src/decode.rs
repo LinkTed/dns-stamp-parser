@@ -3,7 +3,7 @@ use crate::{
     Addr, AnonymizedDnsCryptRelay, DecodeError, DecodeResult, DnsCrypt, DnsOverHttps, DnsOverTls,
     DnsPlain, DnsStamp, DnsStampType, ObliviousDoHTarget, Props,
 };
-use base64::{decode_config, URL_SAFE_NO_PAD};
+use base64::{prelude::BASE64_URL_SAFE_NO_PAD, Engine};
 use std::{
     convert::{TryFrom, TryInto},
     mem::size_of,
@@ -213,7 +213,7 @@ fn decode_props(buf: &[u8], offset: &mut usize) -> DecodeResult<Props> {
 /// Decode a Base64 encoded `&str` with a prefix `"sdns://"` to `std::vec::Vec<u8>`.
 fn decode_base64(stamp: &str) -> DecodeResult<Vec<u8>> {
     if let Some(base64) = stamp.strip_prefix("sdns://") {
-        Ok(decode_config(base64, URL_SAFE_NO_PAD)?)
+        Ok(BASE64_URL_SAFE_NO_PAD.decode(base64)?)
     } else {
         Err(DecodeError::InvalidInput {
             cause: "sdns:// prefix not present".to_string(),
