@@ -23,7 +23,7 @@ fn parse_fail_three() {
     let stamp = "sdns://A";
     assert_eq!(
         stamp.parse::<DnsStamp>(),
-        Err(DecodeError::Base64Error(Base64Error::InvalidLength))
+        Err(DecodeError::Base64Error(Base64Error::InvalidLength(1)))
     )
 }
 
