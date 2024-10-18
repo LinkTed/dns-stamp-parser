@@ -257,25 +257,9 @@ static DNS_STAMPS: [&str; 247] = [
 #[test]
 fn public_resolvers() {
     for stamp_1 in DNS_STAMPS.iter() {
-        match DnsStamp::decode(stamp_1) {
-            Ok(dns_stamp_1) => match dns_stamp_1.encode() {
-                Ok(stamp_2) => match DnsStamp::decode(&stamp_2) {
-                    Ok(dns_stamp_2) => {
-                        if dns_stamp_1 != dns_stamp_2 {
-                            panic!("Not equal: {} {}", stamp_1, stamp_2);
-                        }
-                    }
-                    Err(e) => {
-                        panic!("Decode 2: {:?}: {} {}", e, stamp_1, stamp_2);
-                    }
-                },
-                Err(e) => {
-                    panic!("Encode 1: {:?}: {}", e, stamp_1);
-                }
-            },
-            Err(e) => {
-                panic!("Decode 1: {:?}: {}", e, stamp_1);
-            }
-        }
+        let dns_stamp_1 = DnsStamp::decode(stamp_1).unwrap();
+        let stamp_2 = dns_stamp_1.encode().unwrap();
+        let dns_stamp_2 = DnsStamp::decode(&stamp_2).unwrap();
+        assert_eq!(dns_stamp_1, dns_stamp_2);
     }
 }
