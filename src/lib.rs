@@ -291,12 +291,7 @@ fn bootstrap_hostname(addr: Option<Addr>, host: &str, bootstrap: &[IpAddr]) -> i
         let mut config = ResolverConfig::new();
         for ip in bootstrap {
             let socket_addr = SocketAddr::new(*ip, 53);
-            config.add_name_server(NameServerConfig {
-                socket_addr,
-                protocol: Protocol::Udp,
-                tls_dns_name: None,
-                trust_nx_responses: false,
-            });
+            config.add_name_server(NameServerConfig::new(socket_addr, Protocol::Udp));
         }
 
         let resolver = Resolver::new(config, ResolverOpts::default()).unwrap();
