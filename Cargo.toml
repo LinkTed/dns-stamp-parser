@@ -14,7 +14,7 @@ categories = ["parser-implementations", "encoding"]
 base64 = "0.22"
 bitflags = "2"
 thiserror = "1"
-trust-dns-resolver = { version = "0.20", optional = true }
+trust-dns-resolver = { version = "0.23", optional = true }
 
 [features]
 default = []
